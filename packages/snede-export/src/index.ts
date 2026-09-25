@@ -14,3 +14,8 @@ export type { BladOpties, PlanPlaatsing, SnedeTekening, GeplaatsteTekening, Kade
 export { annotaties, snijlijn, klipLijn, titel, STANDAARD_TEKSTHOOGTE, STANDAARD_DRIEHOEK } from './markering.js';
 export type { Annotatie, AnnotatieLaag, AnnotatieOpties } from './markering.js';
 export type { ZichtOpties } from './zicht/index.js';
+export { exporteer } from './exporteer.js';
+export type { ExportOpties } from './exporteer.js';
+export { verslagAlsTekst, geometrieUitDiagnose } from './verslag.js';
+export type { ExportVerslag, SnedeVerslag } from './verslag.js';
+export { tekenSnedeDetail, NIET_TEKENEN } from './genereer.js';

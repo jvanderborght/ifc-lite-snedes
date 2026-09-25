@@ -11,7 +11,7 @@ import type { DrawingLine } from '@ifc-lite/drawing-2d';
 import type { CoordinateInfo, MeshData } from '@ifc-lite/geometry';
 import { naarSectionConfig, type Snedevlak } from './vlak.js';
 import { zichtlijnen, type ZichtOpties } from './zicht/index.js';
-import { knipDubbeleLijnen } from './dubbel.js';
+import { knipDubbeleLijnen, type DubbelResultaat } from './dubbel.js';
 
 /** Line kinds in the export: cut, visible beyond the cut, hidden beyond the cut. */
 export type LijnSoort = 'snede' | 'zicht' | 'verborgen';
@@ -61,6 +61,16 @@ export async function tekenSnede(
   vlak: Snedevlak,
   opties: ZichtOpties = {},
 ): Promise<Lijn[]> {
+  return (await tekenSnedeDetail(meshes, info, vlak, opties)).lijnen;
+}
+
+/** As tekenSnede, plus the length (mm) removed as duplicate lines, per kind. */
+export async function tekenSnedeDetail(
+  meshes: MeshData[],
+  info: CoordinateInfo | undefined,
+  vlak: Snedevlak,
+  opties: ZichtOpties = {},
+): Promise<DubbelResultaat> {
   const { config, offsetMm } = naarSectionConfig(vlak, info);
   const generator = new Drawing2DGenerator();
   try {
@@ -92,9 +102,9 @@ export async function tekenSnede(
         b: naarMm(l.line.end),
       });
     }
-    if (vlak.diepte <= 0) return lijnen;
+    if (vlak.diepte <= 0) return { lijnen, weggeknipt: { snede: 0, zicht: 0, verborgen: 0 } };
     lijnen.push(...zichtlijnen(meshes, config, offsetMm, vlak.diepte, lijnen, opties));
-    return knipDubbeleLijnen(lijnen).lijnen;
+    return knipDubbeleLijnen(lijnen);
   } finally {
     generator.dispose();
   }

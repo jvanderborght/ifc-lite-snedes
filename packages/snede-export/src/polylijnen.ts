@@ -6,7 +6,7 @@
  * Chain loose line segments into polylines: per element and line kind, walk
  * the segment graph into the longest possible chains, close chains that
  * return to their start, and drop vertices that lie exactly on a straight
- * run. Tolerances are tight (0.1 µm weld, 0.1 µm collinearity) so two lines
+ * run. Tolerances are tight (10 µm weld, 0.1 µm collinearity) so two lines
  * 1 mm apart, like both faces of a foil, never merge.
  */
 
@@ -21,10 +21,37 @@ export interface Polylijn {
   gesloten: boolean;
 }
 
-const LAS = 1e-4;          // mm: endpoints closer than this are the same vertex
+// mm: endpoints closer than this are the same vertex. ifc-lite's float32
+// vertices leave gaps of up to ~8 µm between segments that should meet.
+const LAS = 1e-2;
 const RECHT = 1e-4;        // mm: max distance of a dropped vertex from its run
 
-const sleutel = (p: Punt): string => `${Math.round(p.x / LAS)},${Math.round(p.y / LAS)}`;
+/**
+ * Vertex welding with a grid of cell LAS: a point joins an existing vertex
+ * within LAS found in its own or a neighbouring cell, so two close points on
+ * either side of a cell border still weld.
+ */
+class Lasser {
+  private cellen = new Map<string, { k: string; p: Punt }[]>();
+  private n = 0;
+
+  sleutel(p: Punt): string {
+    const i = Math.floor(p.x / LAS);
+    const j = Math.floor(p.y / LAS);
+    for (let di = -1; di <= 1; di++) {
+      for (let dj = -1; dj <= 1; dj++) {
+        for (const v of this.cellen.get(`${i + di},${j + dj}`) ?? []) {
+          if (Math.hypot(v.p.x - p.x, v.p.y - p.y) <= LAS) return v.k;
+        }
+      }
+    }
+    const k = String(this.n++);
+    const c = `${i},${j}`;
+    const lijst = this.cellen.get(c);
+    if (lijst) lijst.push({ k, p }); else this.cellen.set(c, [{ k, p }]);
+    return k;
+  }
+}
 
 function vereenvoudig(punten: Punt[], gesloten: boolean): Punt[] {
   const uit: Punt[] = [];
@@ -53,9 +80,10 @@ function ketens(segmenten: Lijn[]): { punten: Punt[]; gesloten: boolean }[] {
     if (!buren.has(a)) buren.set(a, []);
     buren.get(a)!.push({ naar: b, seg });
   };
+  const lasser = new Lasser();
   segmenten.forEach((s, i) => {
-    const a = sleutel(s.a);
-    const b = sleutel(s.b);
+    const a = lasser.sleutel(s.a);
+    const b = lasser.sleutel(s.b);
     if (a === b) return;                       // degenerate after welding
     if (!knopen.has(a)) knopen.set(a, s.a);
     if (!knopen.has(b)) knopen.set(b, s.b);

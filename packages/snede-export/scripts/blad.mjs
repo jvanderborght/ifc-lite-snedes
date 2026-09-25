@@ -8,14 +8,12 @@
  *
  *   node scripts/blad.mjs <model.ifc> <out.dxf> "A:x=22600" "B:y=15400" "P:z=1000"
  *        [--diepte 0] [--plannen rij|wereld] [--eenheid mm|cm|m] [--tussenruimte 10000]
- *        [--tekst 500] [--driehoek 500] [--verborgen] [--wel-verborgen-in-snede]
+ *        [--tekst 500] [--driehoek 500] [--verborgen] [--wel-verborgen-in-snede] [--diagnose]
  */
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { GeometryProcessor } from '@ifc-lite/geometry';
-import {
-  annotaties, bladLijnen, geplaatsteMeshes, legBladAan, schrijfDxf, tekenSnede, vlakUitTekst,
-} from '../dist/index.js';
+import { exporteer, verslagAlsTekst, vlakUitTekst } from '../dist/index.js';
 
 const args = process.argv.slice(2);
 const optie = (naam, standaard) => {
@@ -31,6 +29,8 @@ const verborgenLijnen = args.includes('--verborgen');
 if (verborgenLijnen) args.splice(args.indexOf('--verborgen'), 1);
 const verborgenBinnenSnede = args.includes('--wel-verborgen-in-snede');
 if (verborgenBinnenSnede) args.splice(args.indexOf('--wel-verborgen-in-snede'), 1);
+const metDiagnose = args.includes('--diagnose');
+if (metDiagnose) args.splice(args.indexOf('--diagnose'), 1);
 const tussenruimte = Number(optie('tussenruimte', 10000));
 const teksthoogte = Number(optie('tekst', 500));
 const driehoek = Number(optie('driehoek', 500));
@@ -40,25 +40,22 @@ if (!ifcPad || !uitPad || !vlakken.length) {
   process.exit(2);
 }
 
+const bytes = new Uint8Array(await readFile(ifcPad));
 const gp = new GeometryProcessor();
 await gp.init();
-const resultaat = await gp.process(new Uint8Array(await readFile(ifcPad)));
+const resultaat = await gp.process(bytes);
+// Diagnostics mean a second pass over the model, so only on request.
+const diagnose = metDiagnose ? gp.diagnoseGeometry(bytes) : undefined;
 gp.dispose();
-const meshes = geplaatsteMeshes(resultaat.meshes);
 
-const tekeningen = [];
-for (const tekst of vlakken) {
-  const vlak = vlakUitTekst(tekst, diepte);
-  tekeningen.push({ vlak, lijnen: await tekenSnede(meshes, resultaat.coordinateInfo, vlak, { verborgenBinnenSnede }) });
-}
-const geplaatst = legBladAan(tekeningen, { plannen, tussenruimte });
-for (const g of geplaatst) {
-  const k = g.kader;
-  const r = (v) => v.toFixed(0);
-  console.log(`${g.vlak.naam}${g.isPlan ? ' (plan)' : ''}: ${g.lijnen.length} lijnen, verschuiving (${r(g.verschuiving.x)}, ${r(g.verschuiving.y)})`
-    + (k ? `, kader (${r(k.min.x)}, ${r(k.min.y)}) - (${r(k.max.x)}, ${r(k.max.y)})` : ', leeg'));
-}
-await writeFile(uitPad, schrijfDxf(bladLijnen(geplaatst), {
-  eenheid, verborgenLijnen, annotaties: annotaties(geplaatst, { teksthoogte, driehoek }),
-}), 'utf8');
+const { dxf, verslag } = await exporteer(resultaat.meshes, resultaat.coordinateInfo,
+  vlakken.map((tekst) => vlakUitTekst(tekst, diepte)), {
+    blad: { plannen, tussenruimte },
+    annotatie: { teksthoogte, driehoek },
+    dxf: { eenheid, verborgenLijnen },
+    zicht: { verborgenBinnenSnede },
+    diagnose,
+  });
+await writeFile(uitPad, dxf, 'utf8');
+console.log(verslagAlsTekst(verslag));
 console.log(`-> ${uitPad}`);
