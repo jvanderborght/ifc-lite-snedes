@@ -170,6 +170,9 @@ importers:
       '@ifc-lite/geometry':
         specifier: workspace:^
         version: link:../../packages/geometry
+      '@ifc-lite/hout-percentage':
+        specifier: workspace:^
+        version: link:../../packages/hout-percentage
       '@ifc-lite/ids':
         specifier: workspace:^
         version: link:../../packages/ids
