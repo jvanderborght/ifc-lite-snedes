@@ -15,6 +15,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { downloadFile, sanitizeFilename } from '@/lib/export/download';
 import { nextSectionName, parseSections, serializeSections } from '@/lib/sections/saved-section';
 import { readCurrentCut } from '@/lib/sections/section-source';
+import { sectionsFileStem } from '@/lib/sections/storage';
 import { useViewerStore } from '@/store';
 import { activeSectionPlane } from '@/store/section-active';
 import { SectionExportDialog } from './SectionExportDialog';
@@ -54,7 +55,8 @@ export function SectionsPanel({ onClose }: SectionsPanelProps) {
   };
 
   const saveList = () => {
-    downloadFile(serializeSections(sections), `${sanitizeFilename(modelKey ?? 'sections')}.sections.json`, 'application/json');
+    const stem = sectionsFileStem(useViewerStore.getState());
+    downloadFile(serializeSections(sections), `${sanitizeFilename(stem)}.sections.json`, 'application/json');
   };
 
   const loadList = async (file: File | undefined) => {
@@ -75,6 +77,18 @@ export function SectionsPanel({ onClose }: SectionsPanelProps) {
       <div className="flex items-center gap-2 border-b p-3">
         <Scissors className="h-4 w-4 text-sky-600" />
         <span className="flex-1 text-sm font-medium">{t('sectionsPanel.title')}</span>
+        {modelKey && (
+          <>
+            <Button variant="ghost" size="icon" className="h-6 w-6" disabled={!sections.length} onClick={saveList}
+              title={t('sectionsPanel.saveList')}>
+              <Download className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => fileInput.current?.click()}
+              title={t('sectionsPanel.loadList')}>
+              <FileUp className="h-3.5 w-3.5" />
+            </Button>
+          </>
+        )}
         {onClose && (
           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose} title={t('sectionsPanel.close')}>
             <X className="h-3.5 w-3.5" />
@@ -95,15 +109,6 @@ export function SectionsPanel({ onClose }: SectionsPanelProps) {
             <Button size="sm" className="h-7" disabled={!exportable} onClick={() => setExportOpen(true)}
               title={exportable ? t('sectionsPanel.exportDxfHint') : t('sectionsPanel.nothingToExport')}>
               {t('sectionsPanel.exportDxf')}
-            </Button>
-            <span className="flex-1" />
-            <Button variant="ghost" size="icon" className="h-7 w-7" disabled={!sections.length} onClick={saveList}
-              title={t('sectionsPanel.saveList')}>
-              <Download className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => fileInput.current?.click()}
-              title={t('sectionsPanel.loadList')}>
-              <FileUp className="h-3.5 w-3.5" />
             </Button>
             <input
               ref={fileInput}

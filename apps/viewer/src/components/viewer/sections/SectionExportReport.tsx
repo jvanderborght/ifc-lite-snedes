@@ -19,6 +19,13 @@ export interface SectionExportReportProps {
   diagnosticsIdOffset: number;
 }
 
+/**
+ * Gaps up to this size are float noise of the tessellation, far below what a
+ * timber-frame drawing needs (0.5-1 mm), so they are counted, not listed.
+ */
+const RELEVANT_GAP_MM = 0.5;
+const relevant = (o: { grootsteGat: number }): boolean => !(o.grootsteGat <= RELEVANT_GAP_MM);
+
 /** Two-channel selection (apps/viewer/AGENTS.md): global id for 3D, ref for the properties panel. */
 function selectInModel(globalId: number): void {
   const s = useViewerStore.getState();
@@ -48,6 +55,9 @@ export function SectionExportReport({ report, file, diagnosticsIdOffset }: Secti
   const gap = (mm: number) => (!Number.isFinite(mm) ? t('sectionsReport.lonePiece')
     : mm <= 0.1 ? t('sectionsReport.branch') : t('sectionsReport.gap', { mm: mm < 1 ? mm.toFixed(3) : mm.toFixed(0) }));
   const g = report.geometrie;
+  const all = report.snedes.flatMap((s) => s.openSnedeomtrekken);
+  const open = all.filter(relevant);
+  const smallGaps = all.length - open.length;
 
   return (
     <div className="grid max-h-[60vh] gap-3 overflow-y-auto py-2 text-sm">
@@ -79,17 +89,20 @@ export function SectionExportReport({ report, file, diagnosticsIdOffset }: Secti
         </p>
       ))}
 
-      {report.snedes.some((s) => s.openSnedeomtrekken.length) && (
+      {open.length > 0 && (
         <div>
           <p className="font-medium">{t('sectionsReport.openOutlines')}</p>
           <ul className="mt-1 space-y-0.5 text-xs">
-            {report.snedes.flatMap((s) => s.openSnedeomtrekken.map((o) => (
+            {report.snedes.flatMap((s) => s.openSnedeomtrekken.filter(relevant).map((o) => (
               <li key={`${s.naam}-${o.entityId}`}>
                 {`${s.naam}: `}<ElementButton id={o.entityId} type={o.ifcType} />{` (${gap(o.grootsteGat)})`}
               </li>
             )))}
           </ul>
         </div>
+      )}
+      {smallGaps > 0 && (
+        <p className="text-xs text-muted-foreground">{t('sectionsReport.smallGaps', { count: smallGaps, mm: RELEVANT_GAP_MM })}</p>
       )}
 
       {report.nietGetekend.length > 0 && (

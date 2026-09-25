@@ -67,6 +67,7 @@ export const sectionsPanelEn = {
   'sectionsReport.gap': 'gap {mm} mm',
   'sectionsReport.branch': 'branch',
   'sectionsReport.lonePiece': 'lone piece',
+  'sectionsReport.smallGaps': '{count} other cut outline(s) only open by gaps up to {mm} mm (ignored).',
   'sectionsReport.notDrawn': 'Not drawn by design: {list}',
   'sectionsReport.hiddenLeftOut': '{count} element(s) hidden in the viewer were left out.',
   'sectionsReport.failedOpenings': '{count} opening(s) could not be cut (their void may show as solid):',

@@ -29,6 +29,14 @@ export function sectionsModelKey(state: ViewerState): string | null {
   return null;
 }
 
+/** File-name stem for exports: the first visible model's name without `.ifc`. */
+export function sectionsFileStem(state: ViewerState): string {
+  for (const model of state.models.values()) {
+    if (model.visible && model.geometryResult) return model.name.replace(/\.ifc$/i, '') || 'model';
+  }
+  return 'model';
+}
+
 export function loadSavedSections(modelKey: string, newId: () => string): SavedSection[] {
   let text: string | null = null;
   try {

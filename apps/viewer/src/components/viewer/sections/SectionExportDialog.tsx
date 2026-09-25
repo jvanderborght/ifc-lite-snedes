@@ -25,7 +25,7 @@ import { buildExportFilename, downloadFile } from '@/lib/export/download';
 import { toSnedevlak } from '@/lib/sections/saved-section';
 import { readSectionExportSource } from '@/lib/sections/section-source';
 import {
-  loadExportSettings, normalizeSettings, storeExportSettings, type SectionExportSettings,
+  loadExportSettings, normalizeSettings, sectionsFileStem, storeExportSettings, type SectionExportSettings,
 } from '@/lib/sections/storage';
 import { useViewerStore } from '@/store';
 import { SectionExportReport } from './SectionExportReport';
@@ -95,7 +95,7 @@ export function SectionExportDialog({ open, onOpenChange }: SectionExportDialogP
       });
       // The mesh set arrives with hidden elements already removed, so the count comes from the source.
       verslag.verborgenNietGeexporteerd = source.hiddenLeftOut.size;
-      const file = buildExportFilename(`${state.savedSectionsModelKey ?? 'model'}-sections`, 'dxf');
+      const file = buildExportFilename(`${sectionsFileStem(state)}-sections`, 'dxf');
       downloadFile(dxf, file, 'application/dxf');
       setDone({ report: verslag, file, diagnosticsIdOffset: source.diagnosticsIdOffset });
     } catch (err) {
