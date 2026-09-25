@@ -23,14 +23,14 @@ export type Annotatie =
   | { soort: 'tekst'; laag: AnnotatieLaag; p: Punt; hoogte: number; waarde: string };
 
 export interface AnnotatieOpties {
-  /** Text height in mm. Default 250. */
+  /** Text height in mm. Default 500. */
   teksthoogte?: number;
-  /** Side of the direction triangle in mm. Default 250. */
+  /** Side of the direction triangle in mm. Default 500. */
   driehoek?: number;
 }
 
-export const STANDAARD_TEKSTHOOGTE = 250;
-export const STANDAARD_DRIEHOEK = 250;
+export const STANDAARD_TEKSTHOOGTE = 500;
+export const STANDAARD_DRIEHOEK = 500;
 
 const dot = (a: Vec3, b: Vec3): number => a.x * b.x + a.y * b.y + a.z * b.z;
 const cross = (a: Vec3, b: Vec3): Vec3 => ({

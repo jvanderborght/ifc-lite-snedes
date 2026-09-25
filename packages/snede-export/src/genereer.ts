@@ -10,6 +10,7 @@ import { Drawing2DGenerator } from '@ifc-lite/drawing-2d';
 import type { DrawingLine } from '@ifc-lite/drawing-2d';
 import type { CoordinateInfo, MeshData } from '@ifc-lite/geometry';
 import { naarSectionConfig, type Snedevlak } from './vlak.js';
+import { zichtlijnen } from './zicht/index.js';
 
 /** Line kinds in the export: cut, visible beyond the cut, hidden beyond the cut. */
 export type LijnSoort = 'snede' | 'zicht' | 'verborgen';
@@ -62,12 +63,12 @@ export async function tekenSnede(
   const generator = new Drawing2DGenerator();
   try {
     await generator.initialize();
-    const metZicht = vlak.diepte > 0;
+    // drawing-2d supplies the cut lines only; view lines come from zicht/.
     const tekening = await generator.generate(meshes, config, {
       useGPU: false,
-      includeProjection: metZicht,
-      includeEdges: metZicht,
-      includeHiddenLines: metZicht,
+      includeProjection: false,
+      includeEdges: false,
+      includeHiddenLines: false,
       // drawing-2d's merger treats segments within 1 mm as collinear and merges
       // them, which collapses both faces of a 1 mm foil into one line. Chaining
       // happens in our own polyline step with a tight tolerance instead.
@@ -89,6 +90,7 @@ export async function tekenSnede(
         b: naarMm(l.line.end),
       });
     }
+    if (vlak.diepte > 0) lijnen.push(...zichtlijnen(meshes, config, offsetMm, vlak.diepte, lijnen));
     return lijnen;
   } finally {
     generator.dispose();

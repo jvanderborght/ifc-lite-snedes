@@ -8,7 +8,7 @@
  *
  *   node scripts/blad.mjs <model.ifc> <out.dxf> "A:x=22600" "B:y=15400" "P:z=1000"
  *        [--diepte 0] [--plannen rij|wereld] [--eenheid mm|cm|m] [--tussenruimte 10000]
- *        [--tekst 250] [--driehoek 250]
+ *        [--tekst 500] [--driehoek 500]
  */
 
 import { readFile, writeFile } from 'node:fs/promises';
@@ -28,8 +28,8 @@ const diepte = Number(optie('diepte', 0));
 const plannen = optie('plannen', 'rij');
 const eenheid = optie('eenheid', 'mm');
 const tussenruimte = Number(optie('tussenruimte', 10000));
-const teksthoogte = Number(optie('tekst', 250));
-const driehoek = Number(optie('driehoek', 250));
+const teksthoogte = Number(optie('tekst', 500));
+const driehoek = Number(optie('driehoek', 500));
 const [ifcPad, uitPad, ...vlakken] = args;
 if (!ifcPad || !uitPad || !vlakken.length) {
   console.error('gebruik: blad <model.ifc> <out.dxf> "A:x=..." ["B:y=..." ...] [opties]');
