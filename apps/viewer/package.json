@@ -60,6 +60,7 @@
     "@ifc-lite/sandbox": "workspace:^",
     "@ifc-lite/sdk": "workspace:^",
     "@ifc-lite/server-client": "workspace:^",
+    "@ifc-lite/snede-export": "workspace:^",
     "@ifc-lite/solar": "workspace:^",
     "@ifc-lite/source-dalux": "workspace:^",
     "@ifc-lite/source-dropbox": "workspace:^",

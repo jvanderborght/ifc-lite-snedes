@@ -79,6 +79,40 @@ export function naarRenderRichting(d: Vec3): Vec3 {
   return { x: d.x, y: d.z, z: -d.y };
 }
 
+/** Renderer frame (Y-up, metres, shifted) -> IFC world (Z-up, metres). Inverse of naarRenderPunt. */
+export function vanRenderPunt(r: Vec3, info: CoordinateInfo | undefined): Vec3 {
+  const rtc = info?.wasmRtcOffset ?? { x: 0, y: 0, z: 0 };
+  const s = info?.originShift ?? { x: 0, y: 0, z: 0 };
+  return { x: r.x + rtc.x + s.x, y: -(r.z + s.z) + rtc.y, z: r.y + rtc.z + s.y };
+}
+
+export function vanRenderRichting(d: Vec3): Vec3 {
+  return { x: d.x, y: -d.z, z: d.y };
+}
+
+/**
+ * A section plane from the half-space the viewer's cut keeps, in the
+ * renderer frame: keep `dot(p, normal) <= offset` (the viewer's
+ * `resolveKeptHalfSpace`). The viewer looks into the kept half, so the view
+ * direction is -normal. Result in IFC world mm.
+ */
+export function vlakUitHalfruimte(
+  halfruimte: { normal: Vec3; offset: number },
+  info: CoordinateInfo | undefined,
+  naam: string,
+  diepte = 0,
+): Snedevlak {
+  const lengte = Math.hypot(halfruimte.normal.x, halfruimte.normal.y, halfruimte.normal.z);
+  const n = scale(halfruimte.normal, 1 / lengte);
+  const opVlak = scale(n, halfruimte.offset / lengte);
+  return {
+    naam,
+    oorsprong: scale(vanRenderPunt(opVlak, info), 1000),
+    normaal: vanRenderRichting(scale(n, -1)),
+    diepte,
+  };
+}
+
 /**
  * drawing-2d config for this plane. Always the custom-plane path, so the 2D
  * basis is exactly (u, v). drawing-2d keeps the half-space with negative

@@ -221,6 +221,9 @@ importers:
       '@ifc-lite/server-client':
         specifier: workspace:^
         version: link:../../packages/server-client
+      '@ifc-lite/snede-export':
+        specifier: workspace:^
+        version: link:../../packages/snede-export
       '@ifc-lite/solar':
         specifier: workspace:^
         version: link:../../packages/solar

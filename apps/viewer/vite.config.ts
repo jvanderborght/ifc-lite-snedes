@@ -279,6 +279,7 @@ export default defineConfig({
       '@ifc-lite/bcf-api': path.resolve(__dirname, '../../packages/bcf-api/src'),
       '@ifc-lite/oauth-pkce': path.resolve(__dirname, '../../packages/oauth-pkce/src'),
       '@ifc-lite/drawing-2d': path.resolve(__dirname, '../../packages/drawing-2d/src'),
+      '@ifc-lite/snede-export': path.resolve(__dirname, '../../packages/snede-export/src'),
       '@ifc-lite/encoding': path.resolve(__dirname, '../../packages/encoding/src'),
       '@ifc-lite/ids': path.resolve(__dirname, '../../packages/ids/src'),
       '@ifc-lite/lists': path.resolve(__dirname, '../../packages/lists/src'),    },

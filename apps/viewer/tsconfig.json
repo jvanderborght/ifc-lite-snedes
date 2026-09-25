@@ -27,6 +27,7 @@
       "@ifc-lite/oauth-pkce": ["../../packages/oauth-pkce/src"],
       "@ifc-lite/mutations": ["../../packages/mutations/src"],
       "@ifc-lite/drawing-2d": ["../../packages/drawing-2d/src"],
+      "@ifc-lite/snede-export": ["../../packages/snede-export/src"],
       "@ifc-lite/server-client": ["../../packages/server-client/src"],
       "@ifc-lite/ifcx": ["../../packages/ifcx/src"],
       "@ifc-lite/create": ["../../packages/create/src"],
