@@ -71,7 +71,7 @@ export function geometrieUitDiagnose(d: GeometryDiagnostics | undefined): Export
 }
 
 // No gap wider than the weld tolerance: the outline branches (three pieces meet) rather than opens.
-const gat = (v: number): string => (!Number.isFinite(v) ? 'los stuk' : v <= 0.01 ? 'vertakking'
+const gat = (v: number): string => (!Number.isFinite(v) ? 'los stuk' : v <= 0.1 ? 'vertakking'
   : `gat ${v < 1 ? v.toFixed(3) : v.toFixed(0)} mm`);
 const mm = (v: number): string => (v >= 1000 ? `${(v / 1000).toFixed(1)} m` : `${v.toFixed(0)} mm`);
 

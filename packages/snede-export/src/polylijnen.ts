@@ -6,8 +6,8 @@
  * Chain loose line segments into polylines: per element and line kind, walk
  * the segment graph into the longest possible chains, close chains that
  * return to their start, and drop vertices that lie exactly on a straight
- * run. Tolerances are tight (10 µm weld, 0.1 µm collinearity) so two lines
- * 1 mm apart, like both faces of a foil, never merge.
+ * run. Weld 0.1 mm, collinearity 0.1 µm: faces of a layer thinner than 0.1 mm
+ * weld into one, anything thicker (a 0.2 mm foil) keeps both faces.
  */
 
 import type { Lijn, LijnSoort } from './genereer.js';
@@ -21,9 +21,9 @@ export interface Polylijn {
   gesloten: boolean;
 }
 
-// mm: endpoints closer than this are the same vertex. ifc-lite's float32
-// vertices leave gaps of up to ~8 µm between segments that should meet.
-const LAS = 1e-2;
+// mm: endpoints closer than this are the same vertex. Timber-frame drawings
+// need 0.5-1 mm; 0.1 mm also absorbs float32 gaps (seen up to ~8 µm).
+const LAS = 0.1;
 const RECHT = 1e-4;        // mm: max distance of a dropped vertex from its run
 
 /**
