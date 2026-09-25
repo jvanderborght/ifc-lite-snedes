@@ -108,6 +108,35 @@ function isZichtrand(a: P3, b: P3, c1: P3, c2: P3, cosGrens: number): boolean {
   return Math.abs(k1) > OP_LIJN && Math.abs(k2) > OP_LIJN && k1 * k2 > 0;
 }
 
+/**
+ * Drop pairs of faces at an edge that lie in the same plane on the same
+ * side: a face present twice, as where two material layers of one element
+ * touch. What remains are the faces that bound the element, so the layer
+ * boundary is no edge in the view (it is drawn in the cut).
+ */
+function zonderDubbeleVlakken(a: P3, b: P3, derden: number[], v: Float64Array): number[] {
+  if (derden.length <= 2) return derden;
+  const e = { x: b.x - a.x, y: b.y - a.y, z: b.d - a.d };
+  const ee = dot(e, e);
+  const richting = derden.map((i) => {
+    const c = punt(v, i);
+    const w = { x: c.x - a.x, y: c.y - a.y, z: c.d - a.d };
+    const s = dot(w, e) / ee;
+    const p = { x: w.x - s * e.x, y: w.y - s * e.y, z: w.z - s * e.z };
+    const l = Math.sqrt(dot(p, p));
+    return l > 0 ? { x: p.x / l, y: p.y / l, z: p.z / l } : null;
+  });
+  const weg = new Set<number>();
+  for (let i = 0; i < derden.length; i++) {
+    if (weg.has(i) || !richting[i]) continue;
+    for (let j = i + 1; j < derden.length; j++) {
+      if (weg.has(j) || !richting[j]) continue;
+      if (dot(richting[i]!, richting[j]!) > 1 - 1e-5) { weg.add(i); weg.add(j); break; }
+    }
+  }
+  return derden.filter((_, i) => !weg.has(i));
+}
+
 /** Candidate visible edges of one mesh, clipped to the view band. */
 export function zichtranden(v: Float64Array, indices: Uint32Array, diepte: number, knikHoek = KNIK_HOEK): Rand[] {
   const id = lassen(v);
@@ -127,9 +156,11 @@ export function zichtranden(v: Float64Array, indices: Uint32Array, diepte: numbe
   // cos of (180° - crease angle): folds sharper than that are drawn.
   const cosGrens = Math.cos(Math.PI - (knikHoek * Math.PI) / 180);
   const uit: Rand[] = [];
-  for (const [sleutel, lijst] of derden) {
+  for (const [sleutel, alle] of derden) {
     const a = punt(v, Math.floor(sleutel / n));
     const b = punt(v, sleutel % n);
+    const lijst = zonderDubbeleVlakken(a, b, alle, v);
+    if (!lijst.length) continue;                       // edge inside a doubled face only
     const tekenen = lijst.length !== 2 || isZichtrand(a, b, punt(v, lijst[0]), punt(v, lijst[1]), cosGrens);
     if (!tekenen) continue;
     const r = klipDiepte(a, b, 0, diepte);

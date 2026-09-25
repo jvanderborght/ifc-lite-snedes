@@ -60,6 +60,17 @@ describe('zichtlijnen', () => {
     expect(van(lijnen, 'verborgen', 2).length).toBeGreaterThan(0);
   });
 
+  it('draws no view line between the material layers of one element', () => {
+    const laag = (x0: number, x1: number) => ({ ...blok(5, [x0, x1], [100, 200], [0, 1000]), geometryClass: 3 });
+    const lijnen = zichtlijnen([laag(0, 500), laag(500, 1000)], config, offsetMm, 3000, []);
+    expect(van(lijnen, 'zicht', 5)).not.toContain('500.000 0.000 500.000 1000.000');
+    expect(van(lijnen, 'zicht', 5)).toContain('0.000 0.000 0.000 1000.000');
+    // Two separate elements do keep the line where they meet.
+    const los = zichtlijnen([blok(6, [0, 500], [100, 200], [0, 1000]), blok(7, [500, 1000], [100, 200], [0, 1000])],
+      config, offsetMm, 3000, []);
+    expect(van(los, 'zicht', 6)).toContain('500.000 0.000 500.000 1000.000');
+  });
+
   it('ignores geometry beyond the view depth', () => {
     const ver = blok(3, [0, 1000], [4000, 4100], [0, 1000]);
     expect(zichtlijnen([ver], config, offsetMm, 3000, [])).toEqual([]);

@@ -19,6 +19,38 @@ import { afdekkers, naarTekenruimte, zichtranden } from './randen.js';
 /** Parts shorter than this (mm) in the drawing are dropped. */
 const MIN_LENGTE = 1e-4;
 
+/**
+ * Meshes in drawing space, with the material-layer slices of one element
+ * (geometryClass 3) joined into one mesh, so edge extraction sees the
+ * element's outer faces and not the faces between its layers.
+ */
+function* perElement(meshes: MeshData[], config: SectionConfig, offsetMm: { x: number; y: number }):
+  Generator<{ mesh: MeshData; v: Float64Array; indices: Uint32Array }> {
+  const lagen = new Map<number, MeshData[]>();
+  for (const mesh of meshes) {
+    if ((mesh.geometryClass ?? 0) !== 3) {
+      yield { mesh, v: naarTekenruimte(mesh, config, offsetMm), indices: mesh.indices };
+      continue;
+    }
+    const lijst = lagen.get(mesh.expressId);
+    if (lijst) lijst.push(mesh); else lagen.set(mesh.expressId, [mesh]);
+  }
+  for (const schijven of lagen.values()) {
+    const delen = schijven.map((m) => naarTekenruimte(m, config, offsetMm));
+    const v = new Float64Array(delen.reduce((s, d) => s + d.length, 0));
+    const indices = new Uint32Array(schijven.reduce((s, m) => s + m.indices.length, 0));
+    let pv = 0;
+    let pi = 0;
+    schijven.forEach((m, k) => {
+      v.set(delen[k], pv);
+      for (let i = 0; i < m.indices.length; i++) indices[pi + i] = m.indices[i] + pv / 3;
+      pv += delen[k].length;
+      pi += m.indices.length;
+    });
+    yield { mesh: schijven[0], v, indices };
+  }
+}
+
 export function zichtlijnen(
   meshes: MeshData[],
   config: SectionConfig,
@@ -28,10 +60,9 @@ export function zichtlijnen(
 ): Lijn[] {
   const driehoeken: number[] = [];
   const kandidaten: { rand: ReturnType<typeof zichtranden>[number]; mesh: MeshData }[] = [];
-  for (const mesh of meshes) {
-    const v = naarTekenruimte(mesh, config, offsetMm);
-    afdekkers(v, mesh.indices, diepte, driehoeken);
-    for (const rand of zichtranden(v, mesh.indices, diepte)) {
+  for (const { mesh, v, indices } of perElement(meshes, config, offsetMm)) {
+    afdekkers(v, indices, diepte, driehoeken);
+    for (const rand of zichtranden(v, indices, diepte)) {
       if (Math.max(rand.a.d, rand.b.d) < TOL_VLAK) continue;      // lies in the plane: on the cut
       if (Math.hypot(rand.b.x - rand.a.x, rand.b.y - rand.a.y) < MIN_LENGTE) continue; // seen end-on
       kandidaten.push({ rand, mesh });
