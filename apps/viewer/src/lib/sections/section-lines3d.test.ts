@@ -4,7 +4,7 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { planeBoxPolygon, sectionLines3D } from './section-lines3d.js';
+import { planeBoxPolygon, sectionLabelAnchors, sectionLines3D } from './section-lines3d.js';
 import type { SavedSection } from './saved-section.js';
 
 const box = { min: { x: 0, y: 0, z: 0 }, max: { x: 10, y: 3, z: 8 } };
@@ -51,5 +51,18 @@ describe('sectionLines3D', () => {
   it('skips hidden sections and missing bounds', () => {
     assert.deepEqual(sectionLines3D([section({ shown: false })], undefined, box), []);
     assert.deepEqual(sectionLines3D([section({})], undefined, undefined), []);
+  });
+});
+
+describe('sectionLabelAnchors', () => {
+  it('puts the name at the top corner of a vertical section', () => {
+    const vertical: SavedSection = {
+      id: 'b', name: 'B', origin: { x: 5000, y: 0, z: 0 }, direction: { x: -1, y: 0, z: 0 },
+      depth: 0, shown: true, exported: true,
+    };
+    const [a] = sectionLabelAnchors([vertical], undefined, box);
+    assert.equal(a.name, 'B');
+    assert.equal(a.point.y, 3);
+    assert.equal(a.point.x, 5);
   });
 });

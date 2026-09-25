@@ -58,6 +58,9 @@ import {
 
 export type { CutPolygon2D, DrawingLine2D, SectionCustomPlane } from './section-2d-lift.js';
 export { LINE_OVERLAY_CHANNELS } from './section-2d-types.js';
+
+/** Saved section planes (`sections` channel): a fixed blue, distinct from the black overlay lines. */
+const SECTIONS_LINE_COLOR: readonly [number, number, number, number] = [0.05, 0.45, 0.85, 1];
 export type { LineOverlayChannel, Section2DOverlayCapStyle, Section2DOverlayOptions } from './section-2d-types.js';
 
 export class Section2DOverlayRenderer {
@@ -378,8 +381,9 @@ export class Section2DOverlayRenderer {
 
   /**
    * Draw one channel with the shared line pipeline and the shared overlay
-   * colour, binding that channel's own uniform slot. No-ops when the channel is
-   * empty or the pipeline could not be built.
+   * colour (saved sections: their own colour, so they read apart from grid
+   * and annotation lines), binding that channel's own uniform slot. No-ops
+   * when the channel is empty or the pipeline could not be built.
    */
   drawLineOverlay(
     pass: GPURenderPassEncoder,
@@ -389,7 +393,8 @@ export class Section2DOverlayRenderer {
     this.init();
     const resources = this.lineResources();
     if (!resources) return;
-    this.lineOverlays[channel].draw(pass, resources, viewProj, this.overlayLineColor, rteViewProj, camera);
+    const color = channel === 'sections' ? SECTIONS_LINE_COLOR : this.overlayLineColor;
+    this.lineOverlays[channel].draw(pass, resources, viewProj, color, rteViewProj, camera);
   }
 
   /** Colour for the clash-overlap box (its own, not the shared overlay colour). */

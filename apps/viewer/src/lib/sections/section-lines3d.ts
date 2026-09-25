@@ -49,6 +49,28 @@ export function planeBoxPolygon(p: V3, n: V3, box: { min: V3; max: V3 }): V3[] {
 }
 
 /**
+ * Where to put each shown section's name: the highest corner of its outline
+ * (for a plan, whose corners are all equally high, the one furthest along +x).
+ */
+export function sectionLabelAnchors(
+  sections: readonly SavedSection[],
+  info: CoordinateInfo | undefined,
+  box: { min: V3; max: V3 } | undefined,
+): { name: string; point: V3 }[] {
+  if (!box) return [];
+  const out: { name: string; point: V3 }[] = [];
+  for (const s of sections) {
+    if (!s.shown || Math.hypot(s.direction.x, s.direction.y, s.direction.z) === 0) continue;
+    const p = naarRenderPunt({ x: s.origin.x / 1000, y: s.origin.y / 1000, z: s.origin.z / 1000 }, info);
+    const poly = planeBoxPolygon(p, unit(naarRenderRichting(s.direction)), box);
+    if (!poly.length) continue;
+    const top = poly.reduce((best, q) => (q.y > best.y + 1e-9 || (Math.abs(q.y - best.y) <= 1e-9 && q.x > best.x) ? q : best));
+    out.push({ name: s.name, point: top });
+  }
+  return out;
+}
+
+/**
  * Flat [x0, y0, z0, x1, y1, z1, ...] segments for every shown section:
  * clipped outline plus a view-direction arrow.
  */
