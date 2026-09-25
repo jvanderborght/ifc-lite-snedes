@@ -5,11 +5,12 @@
 /**
  * DXF output: layers per IFC class (SNEDE_<class> for cut lines, ZICHT_<class>
  * for visible lines beyond the cut, VERBORGEN_<class> for hidden lines), ACI
- * colour per class, units declared in the header.
+ * colour per class, lineweight per line kind, lines chained into polylines.
  */
 
-import { DxfWriter, Units } from '@tarikjabiri/dxf';
+import { DxfR2000, type Lijndikte, type Lijntype } from './dxf/r2000.js';
 import type { Lijn, LijnSoort } from './genereer.js';
+import { maakPolylijnen } from './polylijnen.js';
 
 /** Default ACI colour per IFC class; unknown classes get 7 (white/black). */
 export const STANDAARD_KLEUREN: Readonly<Record<string, number>> = {
@@ -20,8 +21,13 @@ export const STANDAARD_KLEUREN: Readonly<Record<string, number>> = {
   IfcFurnishingElement: 252,
 };
 
-const VOORVOEGSEL: Record<LijnSoort, string> = {
-  snede: 'SNEDE', zicht: 'ZICHT', verborgen: 'VERBORGEN',
+interface LaagStijl { voorvoegsel: string; lijndikte: Lijndikte; lijntype: Lijntype }
+
+/** Default layer style per line kind (prefix, lineweight, linetype). */
+export const STANDAARD_LAAGSTIJL: Readonly<Record<LijnSoort, LaagStijl>> = {
+  snede: { voorvoegsel: 'SNEDE', lijndikte: 50, lijntype: 'Continuous' },
+  zicht: { voorvoegsel: 'ZICHT', lijndikte: 18, lijntype: 'Continuous' },
+  verborgen: { voorvoegsel: 'VERBORGEN', lijndikte: 13, lijntype: 'DASHED' },
 };
 
 export interface DxfOpties {
@@ -37,20 +43,17 @@ export function klasseNaam(ifcType: string): string {
   return kleine.startsWith('ifc') ? `Ifc${kleine.slice(3)}` : ifcType;
 }
 
+/** Write lines (already in drawing millimetres) to a DXF string. */
 export function schrijfDxf(lijnen: Lijn[], opties: DxfOpties = {}): string {
   const kleuren = opties.kleuren ?? STANDAARD_KLEUREN;
-  const dxf = new DxfWriter();
-  dxf.setUnits(Units.Millimeters);
-  const lagen = new Set<string>();
-  for (const l of lijnen) {
-    if (l.soort === 'verborgen' && !opties.verborgenLijnen) continue;
-    const klasse = klasseNaam(l.ifcType);
-    const laag = `${VOORVOEGSEL[l.soort]}_${klasse}`;
-    if (!lagen.has(laag)) {
-      dxf.addLayer(laag, kleuren[klasse] ?? 7, 'CONTINUOUS');
-      lagen.add(laag);
-    }
-    dxf.addLine({ x: l.a.x, y: l.a.y, z: 0 }, { x: l.b.x, y: l.b.y, z: 0 }, { layerName: laag });
+  const dxf = new DxfR2000();
+  const gekozen = lijnen.filter((l) => l.soort !== 'verborgen' || opties.verborgenLijnen);
+  for (const p of maakPolylijnen(gekozen)) {
+    const klasse = klasseNaam(p.ifcType);
+    const stijl = STANDAARD_LAAGSTIJL[p.soort];
+    const laag = dxf.laag(`${stijl.voorvoegsel}_${klasse}`, kleuren[klasse] ?? 7, stijl.lijndikte, stijl.lijntype);
+    if (p.punten.length === 2 && !p.gesloten) dxf.lijn(p.punten[0], p.punten[1], laag);
+    else dxf.polylijn(p.punten, p.gesloten, laag);
   }
-  return dxf.stringify();
+  return dxf.toString();
 }

@@ -21,8 +21,7 @@
   },
   "dependencies": {
     "@ifc-lite/drawing-2d": "workspace:^",
-    "@ifc-lite/geometry": "workspace:^",
-    "@tarikjabiri/dxf": "2.9.0"
+    "@ifc-lite/geometry": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
