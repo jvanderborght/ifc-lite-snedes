@@ -8,12 +8,13 @@
  *
  *   node scripts/blad.mjs <model.ifc> <out.dxf> "A:x=22600" "B:y=15400" "P:z=1000"
  *        [--diepte 0] [--plannen rij|wereld] [--eenheid mm|cm|m] [--tussenruimte 10000]
+ *        [--tekst 250] [--driehoek 250]
  */
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { GeometryProcessor } from '@ifc-lite/geometry';
 import {
-  bladLijnen, geplaatsteMeshes, legBladAan, schrijfDxf, tekenSnede, vlakUitTekst,
+  annotaties, bladLijnen, geplaatsteMeshes, legBladAan, schrijfDxf, tekenSnede, vlakUitTekst,
 } from '../dist/index.js';
 
 const args = process.argv.slice(2);
@@ -27,6 +28,8 @@ const diepte = Number(optie('diepte', 0));
 const plannen = optie('plannen', 'rij');
 const eenheid = optie('eenheid', 'mm');
 const tussenruimte = Number(optie('tussenruimte', 10000));
+const teksthoogte = Number(optie('tekst', 250));
+const driehoek = Number(optie('driehoek', 250));
 const [ifcPad, uitPad, ...vlakken] = args;
 if (!ifcPad || !uitPad || !vlakken.length) {
   console.error('gebruik: blad <model.ifc> <out.dxf> "A:x=..." ["B:y=..." ...] [opties]');
@@ -51,5 +54,7 @@ for (const g of geplaatst) {
   console.log(`${g.vlak.naam}${g.isPlan ? ' (plan)' : ''}: ${g.lijnen.length} lijnen, verschuiving (${r(g.verschuiving.x)}, ${r(g.verschuiving.y)})`
     + (k ? `, kader (${r(k.min.x)}, ${r(k.min.y)}) - (${r(k.max.x)}, ${r(k.max.y)})` : ', leeg'));
 }
-await writeFile(uitPad, schrijfDxf(bladLijnen(geplaatst), { eenheid }), 'utf8');
+await writeFile(uitPad, schrijfDxf(bladLijnen(geplaatst), {
+  eenheid, annotaties: annotaties(geplaatst, { teksthoogte, driehoek }),
+}), 'utf8');
 console.log(`-> ${uitPad}`);

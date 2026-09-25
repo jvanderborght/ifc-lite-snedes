@@ -110,7 +110,7 @@ export class DxfR2000 {
     const uitgelijnd = h !== 0 || v !== 0;
     const g = [...this.kop('TEXT', laag, 'AcDbText'),
       '10', getal(p.x), '20', getal(p.y), '30', '0.0',
-      '40', getal(hoogte), '1', waarde.replace(/[\r\n]+/g, ' ')];
+      '40', getal(hoogte), '1', tekstwaarde(waarde)];
     if (opties.rotatieGraden) g.push('50', getal(opties.rotatieGraden));
     if (h) g.push('72', String(h));
     if (uitgelijnd) g.push('11', getal(p.x), '21', getal(p.y), '31', '0.0');
@@ -147,6 +147,16 @@ export class DxfR2000 {
     vervang(`$HANDSEED\n  5\n${SJABLOON_HANDSEED}\n`, `$HANDSEED\n  5\n${this.handle()}\n`);
     return t;
   }
+}
+
+/**
+ * The file is written as UTF-8 but an R2000 reader decodes it with
+ * $DWGCODEPAGE (ANSI_1252), so every non-ASCII character goes out as the
+ * DXF escape \U+XXXX.
+ */
+function tekstwaarde(waarde: string): string {
+  return waarde.replace(/[\r\n]+/g, ' ').replace(/[^\x20-\x7e]/gu, (c) =>
+    `\\U+${c.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')}`);
 }
 
 /** Group codes right-aligned to 3 characters, like the template. */

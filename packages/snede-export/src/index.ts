@@ -11,3 +11,5 @@ export { vlakUitTekst, tekenassen } from './vlak.js';
 export type { Snedevlak, Vec3 } from './vlak.js';
 export { legBladAan, bladLijnen, isPlan, kaderVan, STANDAARD_TUSSENRUIMTE } from './blad.js';
 export type { BladOpties, PlanPlaatsing, SnedeTekening, GeplaatsteTekening, Kader } from './blad.js';
+export { annotaties, snijlijn, klipLijn, titel, STANDAARD_TEKSTHOOGTE, STANDAARD_DRIEHOEK } from './markering.js';
+export type { Annotatie, AnnotatieLaag, AnnotatieOpties } from './markering.js';

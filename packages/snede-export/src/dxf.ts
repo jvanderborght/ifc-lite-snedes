@@ -10,6 +10,7 @@
 
 import { DxfR2000, type Eenheid, type Lijndikte, type Lijntype, type Punt } from './dxf/r2000.js';
 import type { Lijn, LijnSoort } from './genereer.js';
+import type { Annotatie, AnnotatieLaag } from './markering.js';
 import { maakPolylijnen } from './polylijnen.js';
 
 /** Default ACI colour per IFC class; unknown classes get 7 (white/black). */
@@ -36,7 +37,15 @@ export interface DxfOpties {
   verborgenLijnen?: boolean;
   /** Output unit; input lines are always mm. Default 'mm'. */
   eenheid?: Eenheid;
+  /** Section markers and titles (mm, sheet coordinates). */
+  annotaties?: Annotatie[];
 }
+
+/** Layers for annotations: name, ACI colour, lineweight. */
+export const ANNOTATIELAGEN: Readonly<Record<AnnotatieLaag, { naam: string; aci: number; lijndikte: Lijndikte }>> = {
+  markering: { naam: 'SNEDEMARKERING', aci: 7, lijndikte: 35 },
+  titel: { naam: 'SNEDETITEL', aci: 7, lijndikte: 25 },
+};
 
 /** Millimetres per drawing unit. */
 export const MM_PER: Readonly<Record<Eenheid, number>> = { mm: 1, cm: 10, m: 1000 };
@@ -72,6 +81,13 @@ export function schrijfDxf(lijnen: Lijn[], opties: DxfOpties = {}): string {
     const punten = p.punten.map(schaal);
     if (punten.length === 2 && !p.gesloten) dxf.lijn(punten[0], punten[1], laag);
     else dxf.polylijn(punten, p.gesloten, laag);
+  }
+  for (const a of opties.annotaties ?? []) {
+    const stijl = ANNOTATIELAGEN[a.laag];
+    const laag = dxf.laag(stijl.naam, stijl.aci, stijl.lijndikte);
+    if (a.soort === 'lijn') dxf.lijn(schaal(a.a), schaal(a.b), laag);
+    else if (a.soort === 'veelhoek') dxf.polylijn(a.punten.map(schaal), true, laag);
+    else dxf.tekst(schaal(a.p), a.hoogte * f, a.waarde, laag, { horizontaal: 1, verticaal: 2 });
   }
   return dxf.toString();
 }

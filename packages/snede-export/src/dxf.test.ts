@@ -43,6 +43,14 @@ describe('schrijfDxf', () => {
     expect(Math.max(...hoekpunten(dxf))).toBe(1);
   });
 
+  it('escapes non-ASCII text for the ANSI_1252 code page', () => {
+    const dxf = schrijfDxf([], {
+      annotaties: [{ soort: 'tekst', laag: 'titel', p: { x: 0, y: 0 }, hoogte: 250, waarde: 'Gevel é' }],
+    });
+    expect(dxf).toContain('\nGevel \\U+00E9\n');
+    expect(dxf).toContain('\nSNEDETITEL\n');
+  });
+
   it('closes a square into one polyline on the class layer', () => {
     const dxf = schrijfDxf(vierkant, { eenheid: 'cm' });
     expect(dxf.match(/\nLWPOLYLINE\n/g)).toHaveLength(1);
