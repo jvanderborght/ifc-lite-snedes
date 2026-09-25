@@ -53,7 +53,7 @@ export class DxfR2000 {
    */
   constructor(
     private readonly eenheid: Eenheid = 'mm',
-    private readonly streep: { streep: number; gat: number } = { streep: 200, gat: 100 },
+    private readonly streep: { streep: number; gat: number } = { streep: 50, gat: 25 },
   ) {}
 
   private volgende = parseInt(SJABLOON_HANDSEED, 16);

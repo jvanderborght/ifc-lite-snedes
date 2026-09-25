@@ -50,7 +50,7 @@ describe('schrijfDxf', () => {
     expect(mm).toContain('\nVERBORGEN_IfcWall\n');
     // DASHED: total length, dash, gap (negative).
     expect(mm).toContain('\nDASHED\n');
-    expect(mm).toContain(' 40\n300.0\n 49\n200.0\n 74\n0\n 49\n-100.0\n');
+    expect(mm).toContain(' 40\n75.0\n 49\n50.0\n 74\n0\n 49\n-25.0\n');
     const m = schrijfDxf(verborgen, { verborgenLijnen: true, eenheid: 'm', streeppatroon: { streep: 100, gat: 50 } });
     expect(m).toContain(' 40\n0.15\n 49\n0.1\n 74\n0\n 49\n-0.05\n');
   });

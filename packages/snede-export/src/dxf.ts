@@ -39,11 +39,11 @@ export interface DxfOpties {
   eenheid?: Eenheid;
   /** Section markers and titles (mm, sheet coordinates). */
   annotaties?: Annotatie[];
-  /** Dash and gap of hidden lines in model mm. Default 200 / 100 (4 / 2 mm on paper at 1:50). */
+  /** Dash and gap of hidden lines in model mm. Default 50 / 25 (1 / 0.5 mm on paper at 1:50). */
   streeppatroon?: { streep: number; gat: number };
 }
 
-export const STANDAARD_STREEPPATROON = { streep: 200, gat: 100 } as const;
+export const STANDAARD_STREEPPATROON = { streep: 50, gat: 25 } as const;
 
 /** Layers for annotations: name, ACI colour, lineweight. */
 export const ANNOTATIELAGEN: Readonly<Record<AnnotatieLaag, { naam: string; aci: number; lijndikte: Lijndikte }>> = {
