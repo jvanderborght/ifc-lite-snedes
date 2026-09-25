@@ -19,6 +19,7 @@ export const viewerShellEn = {
   'viewerShell.chunkLabel.flowPanel': 'Flow panel',
   'viewerShell.chunkLabel.documentPanel': 'Document panel',
   'viewerShell.chunkLabel.layersPanel': 'Layers panel',
+  'viewerShell.chunkLabel.sectionsPanel': 'Sections panel',
   'viewerShell.chunkLabel.mcpPage': 'MCP page',
   'viewerShell.chunkLabel.mcpPlayground': 'MCP playground',
   'viewerShell.chunkLabel.rteGpuWitness': 'RTE GPU witness',

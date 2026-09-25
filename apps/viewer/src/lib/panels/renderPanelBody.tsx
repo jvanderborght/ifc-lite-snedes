@@ -48,6 +48,8 @@ const DocumentPanel = lazy(() => import('@/components/viewer/document/DocumentPa
 const FlowPanel = lazy(() => import('@/components/viewer/flow/FlowPanel').then((m) => ({ default: m.FlowPanel })));
 
 const AppearancePanel = lazy(() => import('@/components/viewer/appearance/AppearancePanel').then(m => ({ default: m.AppearancePanel })));
+// Lazy: the Sections panel pulls in the DXF section export and drawing-2d.
+const SectionsPanel = lazy(() => import('@/components/viewer/sections/SectionsPanel').then((m) => ({ default: m.SectionsPanel })));
 
 // Each lazy panel needs its own stable host identity. Reusing the boundary
 // itself as the body can retain another panel's failed-chunk state on a switch.
@@ -60,6 +62,10 @@ function DocumentPanelBody({ onClose }: { onClose: () => void }) {
 }
 function FlowPanelBody({ onClose }: { onClose: () => void }) {
   return <ChunkErrorBoundary label="Flow panel"><Suspense fallback={null}><FlowPanel onClose={onClose} /></Suspense></ChunkErrorBoundary>;
+}
+
+function SectionsPanelBody({ onClose }: { onClose: () => void }) {
+  return <ChunkErrorBoundary label="Sections panel"><Suspense fallback={null}><SectionsPanel onClose={onClose} /></Suspense></ChunkErrorBoundary>;
 }
 
 function ChartsPanelBody({ onClose }: { onClose: () => void }) {
@@ -105,5 +111,6 @@ export function renderPanelBody(id: WorkspacePanelId, onClose: () => void): Reac
     case 'document': return <DocumentPanelBody onClose={onClose} />;
     case 'cost': return <CostPanel onClose={onClose} />;
     case 'environment': return <EnvironmentPanel onClose={onClose} />;
+    case 'sections': return <SectionsPanelBody onClose={onClose} />;
   }
 }

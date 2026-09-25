@@ -5,7 +5,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { readdirSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { teardownOwnedKeys } from './teardown.js';
 import { viewerTeardownRegistry } from './teardown-registry.js';
@@ -28,6 +28,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
  * field on every file swap.
  */
 const PINNED_SESSION_RESET_KEYS: readonly string[] = [
+  'savedSections', 'savedSectionsModelKey', // multi-section DXF export: saved planes are world coordinates of the outgoing model (per-model copy stays in localStorage)
   'documentPanelVisible', // #4594 documents: templates survive, the panel closes
   'flowPanelVisible', 'flowRunning', 'flowLastRun', 'flowLastError', 'flowLastRunWindow', // #5167 flow: graphs survive, the last run holds handles of the outgoing model
   'chartPanelVisible', 'chartSelectionRevision', 'chartSlice', 'chartSliceSource', 'chartSliceBuckets', 'chartVisibilityOwned', 'chartVisibilityRevision', // #3944 charts: the slice is renderer ids of the outgoing model; the claim is on a shared channel
@@ -95,6 +96,7 @@ const PINNED_SESSION_RESET_KEYS: readonly string[] = [
 
 /** The same, for `all-models-cleared`. */
 const PINNED_ALL_MODELS_CLEARED_KEYS: readonly string[] = [
+  'savedSections', 'savedSectionsModelKey', // multi-section DXF export: saved planes are world coordinates of the outgoing model (per-model copy stays in localStorage)
   'flowLastRun', 'flowLastError', 'flowLastRunWindow', // #5167 flow: the last run's outputs hold handles into the cleared models
   'chartSelectionRevision', 'chartSlice', 'chartSliceSource', 'chartSliceBuckets', 'chartVisibilityOwned', 'chartVisibilityRevision', // #3944 charts
   'modelTagAssignments', 'modelTagView', // #4215 model tags: assignments and the Models-section view die with the federation, definitions survive
@@ -218,6 +220,7 @@ function modelRemovedFixture() {
  * `owns` list fails even when no scope emits it under an empty state.
  */
 const PINNED_OWNED_KEYS: readonly string[] = [
+  'savedSections', 'savedSectionsModelKey', // multi-section DXF export: saved planes are world coordinates of the outgoing model (per-model copy stays in localStorage)
   'documentPanelVisible', // #4594 documents
   'flowPanelVisible', 'flowRunning', 'flowLastRun', 'flowLastError', 'flowLastRunWindow', // #5167 flow
   'chartPanelVisible', 'chartSelectionRevision', 'chartSlice', 'chartSliceSource', 'chartSliceBuckets', 'chartVisibilityOwned', 'chartVisibilityRevision', // #3944 charts
@@ -447,7 +450,8 @@ describe('the teardown registry stays complete', () => {
 
     for (const file of readdirSync(slicesDir).sort()) {
       if (!file.endsWith('.ts') || file.includes('.test.')) continue;
-      const mod = (await import(join(slicesDir, file))) as Record<string, unknown>;
+      // A file URL, not a bare path: a Windows drive letter reads as a URL scheme.
+      const mod = (await import(pathToFileURL(join(slicesDir, file)).href)) as Record<string, unknown>;
       for (const [name, value] of Object.entries(mod)) {
         if (!isSliceTeardown(value)) continue;
         found.push(`${file}:${name}`);

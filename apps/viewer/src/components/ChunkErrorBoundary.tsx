@@ -48,6 +48,7 @@ const CHUNK_LABEL_KEYS = {
   'Flow panel': 'viewerShell.chunkLabel.flowPanel',
   'Document panel': 'viewerShell.chunkLabel.documentPanel',
   'Layers panel': 'viewerShell.chunkLabel.layersPanel',
+  'Sections panel': 'viewerShell.chunkLabel.sectionsPanel',
   'MCP page': 'viewerShell.chunkLabel.mcpPage',
   'MCP playground': 'viewerShell.chunkLabel.mcpPlayground',
   'RTE GPU witness': 'viewerShell.chunkLabel.rteGpuWitness',

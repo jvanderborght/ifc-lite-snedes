@@ -213,7 +213,7 @@ export function readViewZoom(): ViewZoomSnapshot | null {
  * percentage OF, and inventing one would place the cut somewhere the screen
  * never shows.
  */
-function resolveSectionInput(state: ViewerState): ViewSectionResolveInput | null {
+export function resolveSectionInput(state: ViewerState): ViewSectionResolveInput | null {
   // Only the cut on screen: the sheet is the view (#4910).
   const sectionPlane = activeSectionPlane(state);
   if (!sectionPlane) return null;
@@ -258,7 +258,7 @@ function resolveSectionInput(state: ViewerState): ViewSectionResolveInput | null
  * Non-bounds fields (notably `buildingRotation`) stay with the first visible
  * model, matching `ViewportContainer`'s own base-plus-unioned-bounds shape.
  */
-function visibleCoordinateInfo(state: ViewerState): GeometryResult['coordinateInfo'] | null {
+export function visibleCoordinateInfo(state: ViewerState): GeometryResult['coordinateInfo'] | null {
   let base: GeometryResult['coordinateInfo'] | null = null;
   let unioned: Bounds3D | null = null;
 

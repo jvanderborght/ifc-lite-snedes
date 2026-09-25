@@ -64,9 +64,13 @@ const MAX_WIDTH_PCT = 60;
 // to keep the frozen Alt+1..0 mapping intact, but its natural home is the TOP
 // of the rail (it's the primary navigation surface), so float it to the front
 // here. The registry order still drives Alt+N; this only drives display.
+// Sections (saved section planes, DXF export) sits right after Information,
+// among the inspect panels, instead of at the end where registry order puts it.
 const DEFAULT_ORDER: WorkspacePanelId[] = (() => {
   const ids = WORKSPACE_PANELS.map((p) => p.id);
-  const rest = ids.filter((id) => id !== 'hierarchy');
+  const rest: WorkspacePanelId[] = ids.filter((id) => id !== 'hierarchy' && id !== 'sections');
+  const at = rest.indexOf('properties');
+  if (ids.includes('sections')) rest.splice(at >= 0 ? at + 1 : rest.length, 0, 'sections');
   return ids.includes('hierarchy') ? ['hierarchy', ...rest] : rest;
 })();
 
@@ -102,7 +106,10 @@ function normalizeOrder(order: unknown): WorkspacePanelId[] {
   for (const id of DEFAULT_ORDER) {
     if (seen.has(id)) continue;
     if (id === 'hierarchy') out.unshift(id);
-    else out.push(id);
+    else if (id === 'sections' && out.includes('properties')) {
+      // Same first-time migration for Sections: next to Information, not at the bottom.
+      out.splice(out.indexOf('properties') + 1, 0, id);
+    } else out.push(id);
   }
   return out;
 }
