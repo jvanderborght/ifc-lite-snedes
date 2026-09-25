@@ -39,7 +39,11 @@ export interface DxfOpties {
   eenheid?: Eenheid;
   /** Section markers and titles (mm, sheet coordinates). */
   annotaties?: Annotatie[];
+  /** Dash and gap of hidden lines in model mm. Default 200 / 100 (4 / 2 mm on paper at 1:50). */
+  streeppatroon?: { streep: number; gat: number };
 }
+
+export const STANDAARD_STREEPPATROON = { streep: 200, gat: 100 } as const;
 
 /** Layers for annotations: name, ACI colour, lineweight. */
 export const ANNOTATIELAGEN: Readonly<Record<AnnotatieLaag, { naam: string; aci: number; lijndikte: Lijndikte }>> = {
@@ -71,7 +75,8 @@ export function schrijfDxf(lijnen: Lijn[], opties: DxfOpties = {}): string {
   const eenheid = opties.eenheid ?? 'mm';
   const f = 1 / MM_PER[eenheid];
   const schaal = (p: Punt): Punt => ({ x: p.x * f, y: p.y * f });
-  const dxf = new DxfR2000(eenheid);
+  const patroon = opties.streeppatroon ?? STANDAARD_STREEPPATROON;
+  const dxf = new DxfR2000(eenheid, { streep: patroon.streep * f, gat: patroon.gat * f });
   const gekozen = lijnen.filter((l) => l.soort !== 'verborgen' || opties.verborgenLijnen);
   // Chaining tolerances are in mm, so scale only when writing.
   for (const p of maakPolylijnen(gekozen)) {

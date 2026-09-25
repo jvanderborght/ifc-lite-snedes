@@ -8,7 +8,7 @@
  *
  *   node scripts/blad.mjs <model.ifc> <out.dxf> "A:x=22600" "B:y=15400" "P:z=1000"
  *        [--diepte 0] [--plannen rij|wereld] [--eenheid mm|cm|m] [--tussenruimte 10000]
- *        [--tekst 500] [--driehoek 500]
+ *        [--tekst 500] [--driehoek 500] [--verborgen]
  */
 
 import { readFile, writeFile } from 'node:fs/promises';
@@ -27,6 +27,8 @@ const optie = (naam, standaard) => {
 const diepte = Number(optie('diepte', 0));
 const plannen = optie('plannen', 'rij');
 const eenheid = optie('eenheid', 'mm');
+const verborgenLijnen = args.includes('--verborgen');
+if (verborgenLijnen) args.splice(args.indexOf('--verborgen'), 1);
 const tussenruimte = Number(optie('tussenruimte', 10000));
 const teksthoogte = Number(optie('tekst', 500));
 const driehoek = Number(optie('driehoek', 500));
@@ -55,6 +57,6 @@ for (const g of geplaatst) {
     + (k ? `, kader (${r(k.min.x)}, ${r(k.min.y)}) - (${r(k.max.x)}, ${r(k.max.y)})` : ', leeg'));
 }
 await writeFile(uitPad, schrijfDxf(bladLijnen(geplaatst), {
-  eenheid, annotaties: annotaties(geplaatst, { teksthoogte, driehoek }),
+  eenheid, verborgenLijnen, annotaties: annotaties(geplaatst, { teksthoogte, driehoek }),
 }), 'utf8');
 console.log(`-> ${uitPad}`);

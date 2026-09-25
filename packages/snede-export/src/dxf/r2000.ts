@@ -46,7 +46,15 @@ export type Eenheid = 'mm' | 'cm' | 'm';
 export const INSUNITS: Readonly<Record<Eenheid, number>> = { mm: 4, cm: 5, m: 6 };
 
 export class DxfR2000 {
-  constructor(private readonly eenheid: Eenheid = 'mm') {}
+  /**
+   * @param streep dash and gap of the DASHED linetype, in drawing units. The
+   *   template's own pattern (20 / 10) is meant for paper-size drawings and
+   *   reads as a solid line on a building drawn in millimetres.
+   */
+  constructor(
+    private readonly eenheid: Eenheid = 'mm',
+    private readonly streep: { streep: number; gat: number } = { streep: 200, gat: 100 },
+  ) {}
 
   private volgende = parseInt(SJABLOON_HANDSEED, 16);
   private lagen = new Map<string, string>();
@@ -144,6 +152,10 @@ export class DxfR2000 {
         `$EXTMAX\n 10\n${getal(this.max.x)}\n 20\n${getal(this.max.y)}\n 30\n0.0\n`);
     }
     vervang('$INSUNITS\n 70\n4\n', `$INSUNITS\n 70\n${INSUNITS[this.eenheid]}\n`);
+    const { streep, gat } = this.streep;
+    if (!(streep > 0 && gat > 0)) throw new Error(`DXF: ongeldig streeppatroon ${streep}/${gat}`);
+    vervang(' 40\n30.0\n 49\n20.0\n 74\n0\n 49\n-10.0\n 74\n0\n',
+      ` 40\n${getal(streep + gat)}\n 49\n${getal(streep)}\n 74\n0\n 49\n${getal(-gat)}\n 74\n0\n`);
     vervang(`$HANDSEED\n  5\n${SJABLOON_HANDSEED}\n`, `$HANDSEED\n  5\n${this.handle()}\n`);
     return t;
   }
