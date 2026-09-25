@@ -1,0 +1,34 @@
+{
+  "name": "@ifc-lite/snede-export",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multiple section planes to one DXF sheet (mm, per-IFC-class layers and colours, polylines)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "pnpm exec tsc",
+    "typecheck": "node ../../scripts/typecheck-tests.mjs",
+    "test": "vitest run",
+    "orakel": "node scripts/orakel.mjs"
+  },
+  "dependencies": {
+    "@ifc-lite/drawing-2d": "workspace:^",
+    "@ifc-lite/geometry": "workspace:^",
+    "@tarikjabiri/dxf": "2.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.23.13",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.1"
+  },
+  "license": "MPL-2.0"
+}
