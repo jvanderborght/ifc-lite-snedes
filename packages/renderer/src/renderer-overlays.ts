@@ -127,7 +127,7 @@ const CHANNEL_EXPANDS_MODEL_BOUNDS: Record<LineOverlayChannel, boolean> = {
     grid: false,
     dxf: false,
     // A LandXML source may consist entirely of authored terrain lines.
-    terrain: true,
+    terrain: true, sections: false, // sections: saved planes are drawn at the model's extents
 };
 
 export class RendererOverlays {

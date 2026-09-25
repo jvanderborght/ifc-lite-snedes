@@ -109,6 +109,7 @@ export class Section2DOverlayRenderer {
     grid: new WorldLineBuffer(SECTION_2D_UNIFORM_SLOT_INDEX.grid),
     dxf: new WorldLineBuffer(SECTION_2D_UNIFORM_SLOT_INDEX.dxf),
     terrain: new WorldLineBuffer(SECTION_2D_UNIFORM_SLOT_INDEX.terrain),
+    sections: new WorldLineBuffer(SECTION_2D_UNIFORM_SLOT_INDEX.sections),
   };
 
   // Standalone 3D clash-overlap-box overlay (#1277): the wireframe AABB of a

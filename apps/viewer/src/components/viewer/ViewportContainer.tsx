@@ -29,6 +29,7 @@ import { AnnotationLayer } from './annotations/AnnotationLayer';
 import { CollabPresenceLayer } from './CollabPresenceLayer';
 import { Section2DPanel } from './Section2DPanel';
 import { DrawingRuntimeHost } from './drawing/DrawingRuntimeHost';
+import { SavedSectionsHost } from './sections/SavedSectionsHost';
 import { BasketPresentationDock } from './BasketPresentationDock';
 import { BCFOverlay } from './bcf/BCFOverlay';
 import { CesiumOverlay } from './CesiumOverlay';
@@ -1181,6 +1182,7 @@ export function ViewportContainer() {
       <ZoneAssignmentSyncMount />
       <BasketPresentationDock />
       <DrawingRuntimeHost mergedGeometry={mergedGeometryResult} computedIsolatedIds={computedIsolatedIds} />
+      <SavedSectionsHost />
       <Section2DPanel />
     </div>
   );
