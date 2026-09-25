@@ -24,7 +24,6 @@ export const timberFractionEn = {
   'timberFraction.exportTxt': 'Plain text (.txt)',
   'timberFraction.col.model': 'Model',
   'timberFraction.col.wall': 'Wall',
-  'timberFraction.col.globalId': 'GlobalId',
   'timberFraction.col.members': 'Beams zone 0',
   'timberFraction.col.length': 'Length (m)',
   'timberFraction.col.height': 'Height (m)',

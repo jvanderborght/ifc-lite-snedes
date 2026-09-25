@@ -23,7 +23,7 @@ export type CellKind = 'text' | 'int' | 'm' | 'mm' | 'm2' | 'm3' | 'pct';
 export type Cell = string | number | null;
 
 export type ColumnKey =
-  | 'model' | 'wall' | 'globalId' | 'members' | 'length' | 'height' | 'thickness'
+  | 'model' | 'wall' | 'members' | 'length' | 'height' | 'thickness'
   | 'openingArea' | 'timberVolume' | 'timberVolumeAuthored' | VariantId | 'notes';
 
 export interface TimberColumn { key: ColumnKey; label: string; kind: CellKind }
@@ -55,7 +55,7 @@ export interface TimberTable {
 }
 
 const KIND: Record<ColumnKey, CellKind> = {
-  model: 'text', wall: 'text', globalId: 'text', members: 'int', length: 'm', height: 'm', thickness: 'mm',
+  model: 'text', wall: 'text', members: 'int', length: 'm', height: 'm', thickness: 'mm',
   openingArea: 'm2', timberVolume: 'm3', timberVolumeAuthored: 'm3', notes: 'text',
   volumeGross: 'pct', volumeNet: 'pct', volumeGrossAuthored: 'pct', volumeNetAuthored: 'pct',
   sectionGross: 'pct', sectionNet: 'pct', projectedGross: 'pct', unionVolumeGross: 'pct',
@@ -67,7 +67,7 @@ export function buildTimberTable(input: readonly TimberRowInput[], labels: Timbe
   const multiModel = new Set(input.map((r) => r.modelName)).size > 1;
   const keys: ColumnKey[] = [
     ...(multiModel ? (['model'] as const) : []),
-    'wall', 'globalId', 'members', 'length', 'height', 'thickness', 'openingArea', 'timberVolume', 'timberVolumeAuthored',
+    'wall', 'members', 'length', 'height', 'thickness', 'openingArea', 'timberVolume', 'timberVolumeAuthored',
     ...VARIANT_IDS, 'notes',
   ];
   const columns = keys.map((key) => ({ key, label: labels.columns[key], kind: KIND[key] }));
@@ -76,7 +76,6 @@ export function buildTimberTable(input: readonly TimberRowInput[], labels: Timbe
     switch (key) {
       case 'model': return r.modelName;
       case 'wall': return w.name;
-      case 'globalId': return w.globalId;
       case 'members': return w.memberCount;
       case 'length': return w.length;
       case 'height': return w.height;
@@ -95,7 +94,7 @@ export function buildTimberTable(input: readonly TimberRowInput[], labels: Timbe
     switch (k) {
       case 'model': return '';
       case 'wall': return labels.totalLabel;
-      case 'globalId': case 'notes': case 'length': case 'height': return '';
+      case 'notes': case 'length': case 'height': return '';
       case 'members': return t.memberCount;
       case 'thickness': return null;
       case 'openingArea': return t.openingArea;

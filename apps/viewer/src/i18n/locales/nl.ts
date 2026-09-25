@@ -28,7 +28,6 @@ export default {
   'timberFraction.exportTxt': 'Platte tekst (.txt)',
   'timberFraction.col.model': 'Model',
   'timberFraction.col.wall': 'Wand',
-  'timberFraction.col.globalId': 'GlobalId',
   'timberFraction.col.members': 'Balken zone 0',
   'timberFraction.col.length': 'Lengte (m)',
   'timberFraction.col.height': 'Hoogte (m)',

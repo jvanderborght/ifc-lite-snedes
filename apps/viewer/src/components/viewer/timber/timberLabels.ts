@@ -19,7 +19,6 @@ type T = (key: TranslationKey, params?: TranslationParameters) => string;
 const COLUMN_KEYS: Record<Exclude<ColumnKey, (typeof VARIANT_IDS)[number]>, TranslationKey> = {
   model: 'timberFraction.col.model',
   wall: 'timberFraction.col.wall',
-  globalId: 'timberFraction.col.globalId',
   members: 'timberFraction.col.members',
   length: 'timberFraction.col.length',
   height: 'timberFraction.col.height',

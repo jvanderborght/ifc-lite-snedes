@@ -22,7 +22,7 @@ function wall(name: string, over: Partial<WallResult> = {}): WallResult {
 }
 
 const columns = Object.fromEntries(
-  (['model', 'wall', 'globalId', 'members', 'length', 'height', 'thickness', 'openingArea', 'timberVolume', 'timberVolumeAuthored', 'notes', ...VARIANT_IDS] as ColumnKey[])
+  (['model', 'wall', 'members', 'length', 'height', 'thickness', 'openingArea', 'timberVolume', 'timberVolumeAuthored', 'notes', ...VARIANT_IDS] as ColumnKey[])
     .map((k) => [k, `col ${k}`]),
 ) as Record<ColumnKey, string>;
 const labels: TimberLabels = { title: 'Title', subtitle: 'Sub', definitionsTitle: 'Defs', columns, definitions: ['d1'], totalLabel: 'Total' };
@@ -35,7 +35,7 @@ describe('timber table exports', () => {
     assert.strictEqual(lines[0].split(';')[0], 'col wall');
     const row = lines[1].split(';');
     assert.strictEqual(row[0], 'W1');
-    assert.strictEqual(row[3], '1,200'); // length in m
+    assert.strictEqual(row[2], '1,200'); // length in m
     assert.ok(row.includes('13,89')); // volume gross in percent
     assert.strictEqual(lines[2].split(';')[0], 'Total');
   });
