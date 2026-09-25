@@ -11,6 +11,7 @@ import type { DrawingLine } from '@ifc-lite/drawing-2d';
 import type { CoordinateInfo, MeshData } from '@ifc-lite/geometry';
 import { naarSectionConfig, type Snedevlak } from './vlak.js';
 import { zichtlijnen } from './zicht/index.js';
+import { knipDubbeleLijnen } from './dubbel.js';
 
 /** Line kinds in the export: cut, visible beyond the cut, hidden beyond the cut. */
 export type LijnSoort = 'snede' | 'zicht' | 'verborgen';
@@ -90,8 +91,9 @@ export async function tekenSnede(
         b: naarMm(l.line.end),
       });
     }
-    if (vlak.diepte > 0) lijnen.push(...zichtlijnen(meshes, config, offsetMm, vlak.diepte, lijnen));
-    return lijnen;
+    if (vlak.diepte <= 0) return lijnen;
+    lijnen.push(...zichtlijnen(meshes, config, offsetMm, vlak.diepte, lijnen));
+    return knipDubbeleLijnen(lijnen).lijnen;
   } finally {
     generator.dispose();
   }
