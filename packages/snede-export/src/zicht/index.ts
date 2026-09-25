@@ -52,7 +52,10 @@ function* perElement(meshes: MeshData[], config: SectionConfig, offsetMm: { x: n
 }
 
 export interface ZichtOpties {
-  /** Keep hidden lines inside a cut outline (behind a cut face). Default true. */
+  /**
+   * Keep hidden lines inside a cut outline (behind a cut face, e.g. the studs
+   * behind a sheathing board the plane runs through). Default false.
+   */
   verborgenBinnenSnede?: boolean;
 }
 
@@ -80,7 +83,7 @@ export function zichtlijnen(
   const uit: Lijn[] = [];
   for (const { rand, mesh } of kandidaten) {
     const deel = afdekking.verdeel(rand);
-    const verborgen = opties.verborgenBinnenSnede === false ? zonder(deel.verborgen, deel.binnenSnede) : deel.verborgen;
+    const verborgen = opties.verborgenBinnenSnede ? deel.verborgen : zonder(deel.verborgen, deel.binnenSnede);
     for (const [soort, intervallen] of [['zicht', deel.zichtbaar], ['verborgen', verborgen]] as const) {
       for (const [t0, t1] of intervallen) {
         const a = opParameter(rand, t0);

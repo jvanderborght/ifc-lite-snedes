@@ -57,7 +57,10 @@ describe('zichtlijnen', () => {
       .map(([ax, ay, bx, by]) => ({ soort: 'snede', ifcType: 'IfcWall', entityId: 1, a: { x: ax, y: ay }, b: { x: bx, y: by } }));
     const lijnen = zichtlijnen([gesneden, achter], config, offsetMm, 3000, rand);
     expect(van(lijnen, 'zicht', 2)).toEqual([]);
-    expect(van(lijnen, 'verborgen', 2).length).toBeGreaterThan(0);
+    // By default nothing is drawn inside the cut outline, not even dashed.
+    expect(van(lijnen, 'verborgen', 2)).toEqual([]);
+    const metVerborgen = zichtlijnen([gesneden, achter], config, offsetMm, 3000, rand, { verborgenBinnenSnede: true });
+    expect(van(metVerborgen, 'verborgen', 2).length).toBeGreaterThan(0);
   });
 
   it('draws no view line between the material layers of one element', () => {
