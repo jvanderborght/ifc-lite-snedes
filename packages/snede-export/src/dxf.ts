@@ -8,7 +8,7 @@
  * colour per class, lineweight per line kind, lines chained into polylines.
  */
 
-import { DxfR2000, type Lijndikte, type Lijntype } from './dxf/r2000.js';
+import { DxfR2000, type Eenheid, type Lijndikte, type Lijntype, type Punt } from './dxf/r2000.js';
 import type { Lijn, LijnSoort } from './genereer.js';
 import { maakPolylijnen } from './polylijnen.js';
 
@@ -34,10 +34,23 @@ export interface DxfOpties {
   kleuren?: Readonly<Record<string, number>>;
   /** Include hidden lines (dashed layer). Default false. */
   verborgenLijnen?: boolean;
+  /** Output unit; input lines are always mm. Default 'mm'. */
+  eenheid?: Eenheid;
 }
 
-/** IFC type names are stored uppercase in STEP; render them as IfcPascalCase. */
+/** Millimetres per drawing unit. */
+export const MM_PER: Readonly<Record<Eenheid, number>> = { mm: 1, cm: 10, m: 1000 };
+
+const BEKENDE_KLASSEN = new Map(Object.keys(STANDAARD_KLEUREN).map((k) => [k.toUpperCase(), k]));
+
+/**
+ * IFC type names are stored uppercase in STEP; render them as IfcPascalCase.
+ * Word boundaries are unknown for uppercase input, so known classes come
+ * from the colour table and the rest becomes 'Ifc' + lowercase.
+ */
 export function klasseNaam(ifcType: string): string {
+  const bekend = BEKENDE_KLASSEN.get(ifcType.toUpperCase());
+  if (bekend) return bekend;
   if (/^Ifc[A-Z]/.test(ifcType)) return ifcType;
   const kleine = ifcType.toLowerCase();
   return kleine.startsWith('ifc') ? `Ifc${kleine.slice(3)}` : ifcType;
@@ -46,14 +59,19 @@ export function klasseNaam(ifcType: string): string {
 /** Write lines (already in drawing millimetres) to a DXF string. */
 export function schrijfDxf(lijnen: Lijn[], opties: DxfOpties = {}): string {
   const kleuren = opties.kleuren ?? STANDAARD_KLEUREN;
-  const dxf = new DxfR2000();
+  const eenheid = opties.eenheid ?? 'mm';
+  const f = 1 / MM_PER[eenheid];
+  const schaal = (p: Punt): Punt => ({ x: p.x * f, y: p.y * f });
+  const dxf = new DxfR2000(eenheid);
   const gekozen = lijnen.filter((l) => l.soort !== 'verborgen' || opties.verborgenLijnen);
+  // Chaining tolerances are in mm, so scale only when writing.
   for (const p of maakPolylijnen(gekozen)) {
     const klasse = klasseNaam(p.ifcType);
     const stijl = STANDAARD_LAAGSTIJL[p.soort];
     const laag = dxf.laag(`${stijl.voorvoegsel}_${klasse}`, kleuren[klasse] ?? 7, stijl.lijndikte, stijl.lijntype);
-    if (p.punten.length === 2 && !p.gesloten) dxf.lijn(p.punten[0], p.punten[1], laag);
-    else dxf.polylijn(p.punten, p.gesloten, laag);
+    const punten = p.punten.map(schaal);
+    if (punten.length === 2 && !p.gesloten) dxf.lijn(punten[0], punten[1], laag);
+    else dxf.polylijn(punten, p.gesloten, laag);
   }
   return dxf.toString();
 }

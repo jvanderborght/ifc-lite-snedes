@@ -41,7 +41,13 @@ export function veiligeLaagnaam(naam: string): string {
   return (s || 'LAAG').slice(0, 255);
 }
 
+/** Drawing unit and its DXF $INSUNITS code. */
+export type Eenheid = 'mm' | 'cm' | 'm';
+export const INSUNITS: Readonly<Record<Eenheid, number>> = { mm: 4, cm: 5, m: 6 };
+
 export class DxfR2000 {
+  constructor(private readonly eenheid: Eenheid = 'mm') {}
+
   private volgende = parseInt(SJABLOON_HANDSEED, 16);
   private lagen = new Map<string, string>();
   private entiteiten: string[] = [];
@@ -137,6 +143,7 @@ export class DxfR2000 {
       vervang('$EXTMAX\n 10\n-1e+20\n 20\n-1e+20\n 30\n-1e+20\n',
         `$EXTMAX\n 10\n${getal(this.max.x)}\n 20\n${getal(this.max.y)}\n 30\n0.0\n`);
     }
+    vervang('$INSUNITS\n 70\n4\n', `$INSUNITS\n 70\n${INSUNITS[this.eenheid]}\n`);
     vervang(`$HANDSEED\n  5\n${SJABLOON_HANDSEED}\n`, `$HANDSEED\n  5\n${this.handle()}\n`);
     return t;
   }

@@ -4,7 +4,10 @@
 
 export { tekenSnede, geplaatsteMeshes } from './genereer.js';
 export type { Lijn, LijnSoort } from './genereer.js';
-export { schrijfDxf, STANDAARD_KLEUREN } from './dxf.js';
+export { schrijfDxf, STANDAARD_KLEUREN, MM_PER } from './dxf.js';
+export type { Eenheid } from './dxf/r2000.js';
 export type { DxfOpties } from './dxf.js';
 export { vlakUitTekst, tekenassen } from './vlak.js';
 export type { Snedevlak, Vec3 } from './vlak.js';
+export { legBladAan, bladLijnen, isPlan, kaderVan, STANDAARD_TUSSENRUIMTE } from './blad.js';
+export type { BladOpties, PlanPlaatsing, SnedeTekening, GeplaatsteTekening, Kader } from './blad.js';
