@@ -13,7 +13,7 @@
 import type { SectionConfig } from '@ifc-lite/drawing-2d';
 import type { MeshData } from '@ifc-lite/geometry';
 import type { Lijn } from '../genereer.js';
-import { Afdekking, opParameter, TOL_VLAK, type Snedelijn } from './afdekking.js';
+import { Afdekking, opParameter, TOL_VLAK, zonder, type Snedelijn } from './afdekking.js';
 import { afdekkers, naarTekenruimte, zichtranden } from './randen.js';
 
 /** Parts shorter than this (mm) in the drawing are dropped. */
@@ -51,12 +51,18 @@ function* perElement(meshes: MeshData[], config: SectionConfig, offsetMm: { x: n
   }
 }
 
+export interface ZichtOpties {
+  /** Keep hidden lines inside a cut outline (behind a cut face). Default true. */
+  verborgenBinnenSnede?: boolean;
+}
+
 export function zichtlijnen(
   meshes: MeshData[],
   config: SectionConfig,
   offsetMm: { x: number; y: number },
   diepte: number,
   snede: Lijn[],
+  opties: ZichtOpties = {},
 ): Lijn[] {
   const driehoeken: number[] = [];
   const kandidaten: { rand: ReturnType<typeof zichtranden>[number]; mesh: MeshData }[] = [];
@@ -73,8 +79,9 @@ export function zichtlijnen(
 
   const uit: Lijn[] = [];
   for (const { rand, mesh } of kandidaten) {
-    const { zichtbaar, verborgen } = afdekking.verdeel(rand);
-    for (const [soort, intervallen] of [['zicht', zichtbaar], ['verborgen', verborgen]] as const) {
+    const deel = afdekking.verdeel(rand);
+    const verborgen = opties.verborgenBinnenSnede === false ? zonder(deel.verborgen, deel.binnenSnede) : deel.verborgen;
+    for (const [soort, intervallen] of [['zicht', deel.zichtbaar], ['verborgen', verborgen]] as const) {
       for (const [t0, t1] of intervallen) {
         const a = opParameter(rand, t0);
         const b = opParameter(rand, t1);

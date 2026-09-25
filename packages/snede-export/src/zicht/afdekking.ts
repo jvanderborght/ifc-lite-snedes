@@ -188,9 +188,13 @@ export class Afdekking {
     return uit;
   }
 
-  /** Split an edge into its visible and hidden parts (parameter intervals). */
-  verdeel(r: Rand): { zichtbaar: Interval[]; verborgen: Interval[] } {
-    const verborgen: Interval[] = this.achterKap(r);
+  /**
+   * Split an edge into its visible and hidden parts (parameter intervals).
+   * `binnenSnede` are the parts inside a cut outline (hidden by a cap).
+   */
+  verdeel(r: Rand): { zichtbaar: Interval[]; verborgen: Interval[]; binnenSnede: Interval[] } {
+    const binnenSnede = this.achterKap(r);
+    const verborgen: Interval[] = [...binnenSnede];
     this.rooster.zoek(Math.min(r.a.x, r.b.x), Math.min(r.a.y, r.b.y), Math.max(r.a.x, r.b.x), Math.max(r.a.y, r.b.y), (t) => {
       const iv = this.achterDriehoek(r, t);
       if (iv) verborgen.push(iv);
@@ -209,8 +213,34 @@ export class Afdekking {
       t = Math.max(t, b);
     }
     if (t < 1) zichtbaar.push([t, 1]);
-    return { zichtbaar, verborgen: samen };
+    return { zichtbaar, verborgen: samen, binnenSnede: voegSamen(binnenSnede) };
   }
+}
+
+/** Sorted, merged copy of intervals. */
+export function voegSamen(iv: Interval[]): Interval[] {
+  const uit: Interval[] = [];
+  for (const [a, b] of [...iv].sort((p, q) => p[0] - q[0])) {
+    const laatste = uit[uit.length - 1];
+    if (laatste && a <= laatste[1] + 1e-12) laatste[1] = Math.max(laatste[1], b);
+    else uit.push([a, b]);
+  }
+  return uit;
+}
+
+/** a minus b, both sorted and merged. */
+export function zonder(a: Interval[], b: Interval[]): Interval[] {
+  const uit: Interval[] = [];
+  for (const [s, e] of a) {
+    let t = s;
+    for (const [bs, be] of b) {
+      if (be <= t || bs >= e) continue;
+      if (bs > t) uit.push([t, bs]);
+      t = Math.max(t, be);
+    }
+    if (t < e) uit.push([t, e]);
+  }
+  return uit;
 }
 
 export const opParameter = (r: Rand, t: number): P3 => ({

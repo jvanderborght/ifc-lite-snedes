@@ -10,7 +10,7 @@ import { Drawing2DGenerator } from '@ifc-lite/drawing-2d';
 import type { DrawingLine } from '@ifc-lite/drawing-2d';
 import type { CoordinateInfo, MeshData } from '@ifc-lite/geometry';
 import { naarSectionConfig, type Snedevlak } from './vlak.js';
-import { zichtlijnen } from './zicht/index.js';
+import { zichtlijnen, type ZichtOpties } from './zicht/index.js';
 import { knipDubbeleLijnen } from './dubbel.js';
 
 /** Line kinds in the export: cut, visible beyond the cut, hidden beyond the cut. */
@@ -59,6 +59,7 @@ export async function tekenSnede(
   meshes: MeshData[],
   info: CoordinateInfo | undefined,
   vlak: Snedevlak,
+  opties: ZichtOpties = {},
 ): Promise<Lijn[]> {
   const { config, offsetMm } = naarSectionConfig(vlak, info);
   const generator = new Drawing2DGenerator();
@@ -92,7 +93,7 @@ export async function tekenSnede(
       });
     }
     if (vlak.diepte <= 0) return lijnen;
-    lijnen.push(...zichtlijnen(meshes, config, offsetMm, vlak.diepte, lijnen));
+    lijnen.push(...zichtlijnen(meshes, config, offsetMm, vlak.diepte, lijnen, opties));
     return knipDubbeleLijnen(lijnen).lijnen;
   } finally {
     generator.dispose();

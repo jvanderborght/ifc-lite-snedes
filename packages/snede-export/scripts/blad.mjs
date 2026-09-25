@@ -8,7 +8,7 @@
  *
  *   node scripts/blad.mjs <model.ifc> <out.dxf> "A:x=22600" "B:y=15400" "P:z=1000"
  *        [--diepte 0] [--plannen rij|wereld] [--eenheid mm|cm|m] [--tussenruimte 10000]
- *        [--tekst 500] [--driehoek 500] [--verborgen]
+ *        [--tekst 500] [--driehoek 500] [--verborgen] [--geen-verborgen-in-snede]
  */
 
 import { readFile, writeFile } from 'node:fs/promises';
@@ -29,6 +29,8 @@ const plannen = optie('plannen', 'rij');
 const eenheid = optie('eenheid', 'mm');
 const verborgenLijnen = args.includes('--verborgen');
 if (verborgenLijnen) args.splice(args.indexOf('--verborgen'), 1);
+const verborgenBinnenSnede = !args.includes('--geen-verborgen-in-snede');
+if (!verborgenBinnenSnede) args.splice(args.indexOf('--geen-verborgen-in-snede'), 1);
 const tussenruimte = Number(optie('tussenruimte', 10000));
 const teksthoogte = Number(optie('tekst', 500));
 const driehoek = Number(optie('driehoek', 500));
@@ -47,7 +49,7 @@ const meshes = geplaatsteMeshes(resultaat.meshes);
 const tekeningen = [];
 for (const tekst of vlakken) {
   const vlak = vlakUitTekst(tekst, diepte);
-  tekeningen.push({ vlak, lijnen: await tekenSnede(meshes, resultaat.coordinateInfo, vlak) });
+  tekeningen.push({ vlak, lijnen: await tekenSnede(meshes, resultaat.coordinateInfo, vlak, { verborgenBinnenSnede }) });
 }
 const geplaatst = legBladAan(tekeningen, { plannen, tussenruimte });
 for (const g of geplaatst) {
