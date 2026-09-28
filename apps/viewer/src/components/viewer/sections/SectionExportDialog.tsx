@@ -75,7 +75,7 @@ export function SectionExportDialog({ open, onOpenChange }: SectionExportDialogP
 
   const runExport = async () => {
     setBusy(true);
-    // Let the spinner paint before the (synchronous, CPU-heavy) section work starts.
+    // Let the spinner paint before the main-thread part (gathering, rebuilding) starts.
     await new Promise((r) => window.setTimeout(r, 30));
     try {
       const s = normalizeSettings(settings);
@@ -85,9 +85,20 @@ export function SectionExportDialog({ open, onOpenChange }: SectionExportDialogP
         toast.error(t('sectionsExport.noGeometry'));
         return;
       }
-      const { exporteer, STANDAARD_KLEUREN } = await import('@ifc-lite/snede-export');
+      const { herstelOnderdelen, STANDAARD_KLEUREN } = await import('@ifc-lite/snede-export');
       const planes = state.savedSections.filter((sec) => sec.exported).map(toSnedevlak);
-      const { dxf, verslag } = await exporteer(source.meshes, source.coordinateInfo, planes, {
+      // Rebuilding pre-cut parts needs the data store, so it runs here; the
+      // cutting and writing run in a worker to keep the viewer responsive.
+      let meshes = source.meshes;
+      let rebuilt = 0;
+      for (const { store, idOffset } of s.partsAsModelled ? source.herstel : []) {
+        const r = herstelOnderdelen(meshes, store, source.coordinateInfo, idOffset);
+        meshes = r.meshes;
+        rebuilt += r.hersteld.length;
+      }
+      const { exportSectionsOffThread } = await import('@/lib/sections/export-worker-client');
+      const { slimMesh } = await import('@/workers/sectionExport.worker');
+      const { dxf, report: verslag } = await exportSectionsOffThread({ meshes: meshes.map(slimMesh), info: source.coordinateInfo, planes, options: {
         blad: { plannen: s.plans === 'row' ? 'rij' : 'wereld', tussenruimte: s.gap },
         annotatie: { teksthoogte: s.textHeight, driehoek: s.triangleSize },
         dxf: {
@@ -98,8 +109,8 @@ export function SectionExportDialog({ open, onOpenChange }: SectionExportDialogP
         },
         zicht: { verborgenBinnenSnede: s.hiddenInsideCut },
         diagnose: source.diagnostics,
-        herstel: s.partsAsModelled ? source.herstel : [],
-      });
+      } });
+      verslag.herbouwdUitBrep = rebuilt;
       // The mesh set arrives with hidden elements already removed, so the count comes from the source.
       verslag.verborgenNietGeexporteerd = source.hiddenLeftOut.size;
       const file = buildExportFilename(`${sectionsFileStem(state)}-sections`, 'dxf');
