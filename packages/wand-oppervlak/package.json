@@ -1,0 +1,33 @@
+{
+  "name": "@ifc-lite/wand-oppervlak",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Wall face area per IfcWall over all layers: gross outline, net (openings out) and per side, for non-rectangular walls too",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "pnpm exec tsc",
+    "typecheck": "node ../../scripts/typecheck-tests.mjs",
+    "test": "vitest run",
+    "rapport": "node scripts/rapport.mjs"
+  },
+  "dependencies": {
+    "@ifc-lite/data": "workspace:^"
+  },
+  "devDependencies": {
+    "@ifc-lite/geometry": "workspace:^",
+    "@ifc-lite/parser": "workspace:^",
+    "@types/node": "^24.0.0",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.1"
+  },
+  "license": "MPL-2.0"
+}
