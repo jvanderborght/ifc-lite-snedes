@@ -3,16 +3,18 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /**
- * Runs the timber-fraction calculation (`@ifc-lite/hout-percentage`) over
- * every loaded model, on request only.
+ * Runs the wall analysis (`lib/wall-analysis/compute.ts`) over every loaded
+ * model, on request only.
  *
- * Geometry comes from the renderer's Scene, the same pieces the zone
- * apportionment reads (`getMeshDataPieces`, then the instanced fallback),
- * keyed by the federated global id — so federation needs no special case.
- * Members and zones come from each model's own `IfcDataStore`.
+ * Geometry: the renderer's Scene pieces keyed by the federated global id
+ * (`getMeshDataPieces`, then the instanced fallback), plus the opening
+ * elements' meshes from each model's geometry result (the Scene does not keep
+ * those). Walls, parts and zones come from each model's own `IfcDataStore`;
+ * the authored B-reps are read from it too.
  *
  * The work is sliced per wall with a macrotask yield between walls, so the
- * UI stays responsive and the progress line moves.
+ * UI stays responsive and the progress line moves. A newer run, or the panel
+ * unmounting, abandons the running one.
  *
  * Teardown: results are cached per `IfcDataStore` object in a WeakMap, never
  * in the viewer store. A removed or replaced model drops its store, and with
@@ -21,20 +23,22 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { authoredVolume, collectWalls, computeWall, type WallResult } from '@ifc-lite/hout-percentage';
 import type { MeshData } from '@ifc-lite/geometry';
 import type { IfcDataStore } from '@ifc-lite/parser';
 import { useViewerStore } from '@/store';
 import { getAllModelEntries } from '@/sdk/adapters/model-compat';
 import { getGlobalRenderer } from '@/hooks/useBCF';
+import type { WallAnalysisRow } from '@/lib/wall-analysis/columns';
+import { analyseWall, planModel } from '@/lib/wall-analysis/compute';
 
-export interface TimberEntry {
+export interface ModelAnalysis {
   modelId: string;
   modelName: string;
-  wall: WallResult;
+  hasZones: boolean;
+  rows: WallAnalysisRow[];
 }
 
-export type TimberStatus =
+export type WallAnalysisStatus =
   | { kind: 'idle' }
   | { kind: 'running'; done: number; total: number }
   | { kind: 'done' }
@@ -42,7 +46,7 @@ export type TimberStatus =
   | { kind: 'noScene' }
   | { kind: 'error'; message: string };
 
-const cache = new WeakMap<IfcDataStore, TimberEntry[]>();
+const cache = new WeakMap<IfcDataStore, ModelAnalysis>();
 
 const nextMacrotask = (): Promise<void> => new Promise((resolve) => { setTimeout(resolve, 0); });
 
@@ -71,20 +75,22 @@ function loadedStores(state: ModelsState): Array<{ id: string; name: string; sto
   return out;
 }
 
-export function useTimberFraction(): { entries: TimberEntry[]; status: TimberStatus; run: () => void } {
+export function useWallAnalysis(): { models: ModelAnalysis[]; status: WallAnalysisStatus; run: () => void } {
   const models = useViewerStore((s) => s.models);
   const legacyStore = useViewerStore((s) => s.ifcDataStore);
-  const [status, setStatus] = useState<TimberStatus>({ kind: 'idle' });
+  const [status, setStatus] = useState<WallAnalysisStatus>({ kind: 'idle' });
   const [revision, setRevision] = useState(0);
   const runToken = useRef(0);
 
-  // Abandon a running calculation when the panel unmounts.
   useEffect(() => () => { runToken.current++; }, []);
 
   // `revision` re-reads the cache after a run; `models`/`legacyStore` after a load or removal.
-  const entries = useMemo(() => {
-    const out: TimberEntry[] = [];
-    for (const m of loadedStores({ models, ifcDataStore: legacyStore })) out.push(...(cache.get(m.store) ?? []));
+  const analysed = useMemo(() => {
+    const out: ModelAnalysis[] = [];
+    for (const m of loadedStores({ models, ifcDataStore: legacyStore })) {
+      const hit = cache.get(m.store);
+      if (hit) out.push(hit);
+    }
     return revision >= 0 ? out : [];
   }, [models, legacyStore, revision]);
 
@@ -97,37 +103,33 @@ export function useTimberFraction(): { entries: TimberEntry[]; status: TimberSta
     const toGlobalId = useViewerStore.getState().toGlobalId;
     const openings = openingMeshes();
 
-    const jobs = stores.flatMap((m) => collectWalls(m.store).map((wall) => ({ m, wall })));
-    const fresh = new Map<IfcDataStore, TimberEntry[]>(stores.map((m) => [m.store, []]));
+    const plans = stores.map((m) => ({ m, plan: planModel(m.store) }));
+    const fresh = new Map<IfcDataStore, ModelAnalysis>(plans.map(({ m, plan }) => [m.store, { modelId: m.id, modelName: m.name, hasZones: plan.hasZones, rows: [] }]));
+    const jobs = plans.flatMap(({ m, plan }) => plan.walls.map((wall) => ({ m, wall })));
     setStatus({ kind: 'running', done: 0, total: jobs.length });
 
     void (async () => {
       try {
         for (let i = 0; i < jobs.length; i++) {
           const { m, wall } = jobs[i];
-          const scale = m.store.lengthUnitScale ?? 1;
-          const result = computeWall(
-            wall,
-            (id) => {
-              const g = toGlobalId(m.id, id);
-              return scene.getMeshDataPieces(g) ?? scene.getInstancedMeshDataPieces?.(g) ?? openings.get(g) ?? [];
-            },
-            { authoredVolume: (id) => authoredVolume(m.store, id, scale) },
-          );
-          fresh.get(m.store)?.push({ modelId: m.id, modelName: m.name, wall: result });
+          const meshes = (id: number) => {
+            const g = toGlobalId(m.id, id);
+            return scene.getMeshDataPieces(g) ?? scene.getInstancedMeshDataPieces?.(g) ?? openings.get(g) ?? [];
+          };
+          fresh.get(m.store)?.rows.push(analyseWall(m.store, wall, meshes, { id: m.id, name: m.name }));
           await nextMacrotask();
           if (token !== runToken.current) return;
           setStatus({ kind: 'running', done: i + 1, total: jobs.length });
         }
-        for (const [store, list] of fresh) cache.set(store, list);
+        for (const [store, entry] of fresh) cache.set(store, entry);
         setRevision((r) => r + 1);
         setStatus({ kind: 'done' });
       } catch (err) {
-        console.error('[timber-fraction] calculation failed', err);
+        console.error('[wall-analysis] calculation failed', err);
         if (token === runToken.current) setStatus({ kind: 'error', message: err instanceof Error ? err.message : String(err) });
       }
     })();
   }, []);
 
-  return { entries, status, run };
+  return { models: analysed, status, run };
 }

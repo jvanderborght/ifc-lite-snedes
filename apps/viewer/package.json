@@ -47,6 +47,7 @@
     "@ifc-lite/ifcx": "workspace:^",
     "@ifc-lite/lens": "workspace:^",
     "@ifc-lite/hout-percentage": "workspace:^",
+    "@ifc-lite/wand-oppervlak": "workspace:^",
     "@ifc-lite/lists": "workspace:^",
     "@ifc-lite/mcp": "workspace:^",
     "@ifc-lite/merge": "workspace:^",

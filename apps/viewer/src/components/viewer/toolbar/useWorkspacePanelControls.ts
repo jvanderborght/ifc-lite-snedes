@@ -257,7 +257,7 @@ export function useWorkspacePanelControls() {
     if (sidebarActivePanel === 'appearance') panels.add('appearance');
     if (sidebarActivePanel === 'loadReport') panels.add('loadReport');
     if (sidebarActivePanel === 'cost') panels.add('cost');
-    if (sidebarActivePanel === 'timberFraction') panels.add('timberFraction');
+    if (sidebarActivePanel === 'wallAnalysis') panels.add('wallAnalysis');
     if (analysisExtensionState.activeId) panels.add(analysisExtensionState.activeId);
     return panels;
   }, [
@@ -303,7 +303,7 @@ export function useWorkspacePanelControls() {
     if (activeWorkspacePanels.has('appearance')) return 'Appearance';
     if (activeWorkspacePanels.has('loadReport')) return 'Load Report';
     if (activeWorkspacePanels.has('cost')) return 'Cost';
-    if (activeWorkspacePanels.has('timberFraction')) return 'Timber fraction';
+    if (activeWorkspacePanels.has('wallAnalysis')) return 'Wall analysis';
     if (activeWorkspacePanels.has('flow')) return 'Flow';
     return activeAnalysisExtension?.label ?? 'Analysis';
   }, [activeAnalysisExtension?.label, activeWorkspacePanels]);

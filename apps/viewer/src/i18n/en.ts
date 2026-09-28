@@ -74,7 +74,7 @@ import { structuralPropertiesEn } from './catalogues/structural-properties.en';
 import { webgpuTroubleshootingEn } from './catalogues/webgpu-troubleshooting.en';
 import { scriptPanelEn } from './catalogues/script-panel.en';
 import { zonesPanelEn } from './catalogues/zones-panel.en';
-import { timberFractionEn } from './catalogues/timber-fraction.en';
+import { wallAnalysisEn } from './catalogues/wall-analysis.en';
 
 /** English is assembled from feature catalogues so no locale becomes a monolith. */
 export const en = {
@@ -150,7 +150,7 @@ export const en = {
   ...viewportLightingEn,
   ...miscPanelsAEn,
   ...sheetsPdfEn,
-  ...timberFractionEn,
+  ...wallAnalysisEn,
 } as const;
 
 export type TranslationKey = keyof typeof en;
