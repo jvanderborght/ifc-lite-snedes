@@ -30,6 +30,7 @@ import { ZonesPanel } from '@/components/viewer/ZonesPanel';
 import { LoadReportPanel } from '@/components/viewer/LoadReportPanel';
 import { CostPanel } from '@/components/viewer/CostPanel';
 import { EnvironmentPanel } from '@/components/viewer/EnvironmentPanel';
+import { TimberFractionPanel } from '@/components/viewer/timber/TimberFractionPanel';
 // Lazy: the Layers panel pulls in @ifc-lite/merge (engine + blake3); a
 // dynamic chunk keeps it out of the initial bundle until first opened.
 const LayersPanel = lazy(() =>
@@ -112,5 +113,6 @@ export function renderPanelBody(id: WorkspacePanelId, onClose: () => void): Reac
     case 'cost': return <CostPanel onClose={onClose} />;
     case 'environment': return <EnvironmentPanel onClose={onClose} />;
     case 'sections': return <SectionsPanelBody onClose={onClose} />;
+    case 'timberFraction': return <TimberFractionPanel onClose={onClose} />;
   }
 }

@@ -170,6 +170,9 @@ importers:
       '@ifc-lite/geometry':
         specifier: workspace:^
         version: link:../../packages/geometry
+      '@ifc-lite/hout-percentage':
+        specifier: workspace:^
+        version: link:../../packages/hout-percentage
       '@ifc-lite/ids':
         specifier: workspace:^
         version: link:../../packages/ids
@@ -1285,6 +1288,28 @@ importers:
       '@tauri-apps/api':
         specifier: ^2.11.1
         version: 2.11.1
+
+  packages/hout-percentage:
+    dependencies:
+      '@ifc-lite/data':
+        specifier: workspace:^
+        version: link:../data
+      '@ifc-lite/geometry':
+        specifier: workspace:^
+        version: link:../geometry
+    devDependencies:
+      '@ifc-lite/parser':
+        specifier: workspace:^
+        version: link:../parser
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.6
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.11(@edge-runtime/vm@3.2.0)(@types/node@24.13.6)(happy-dom@20.14.5)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.1))
 
   packages/ids:
     dependencies:

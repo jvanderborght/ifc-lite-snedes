@@ -17,7 +17,7 @@
  * which keeps this module free of heavy imports.
  */
 
-import { BarChart3, Box, CalendarRange, ClipboardCheck, Cloud, Coins, Crosshair, FileText, FileWarning, GitCompareArrows, Info, Layers as LayersIcon, ListTree, MessageSquare, Palette, Puzzle, Scissors, Sun, Table2, Terminal, type LucideIcon, Users, Workflow } from 'lucide-react';
+import { BarChart3, Box, CalendarRange, ClipboardCheck, Cloud, Coins, Crosshair, FileText, FileWarning, GitCompareArrows, Info, Layers as LayersIcon, ListTree, MessageSquare, Palette, Puzzle, Scissors, Sun, Table2, Terminal, Trees, type LucideIcon, Users, Workflow } from 'lucide-react';
 
 /** Every panel reachable from the unified sidebar rail. `properties` is the
  *  Information panel (the right pane's default fallback). Each panel opens in
@@ -47,7 +47,8 @@ export type WorkspacePanelId =
   | 'document'
   | 'cost'
   | 'environment'
-  | 'sections';
+  | 'sections'
+  | 'timberFraction';
 
 /** Activity-bar clustering — a divider is drawn whenever the group changes. */
 export type PanelGroup = 'navigate' | 'inspect' | 'review' | 'author' | 'work';
@@ -134,6 +135,10 @@ export const WORKSPACE_PANELS: readonly WorkspacePanelDef[] = [
   // position is right after Information (see DEFAULT_ORDER in sidebarSlice).
   // Flag-free like 'zones'/'loadReport'/'cost' (#1869 precedent).
   { id: 'sections', title: 'Sections', short: 'Sections', Icon: Scissors, group: 'inspect', region: 'side' },
+  // Timber share of timber-frame walls (fork feature, @ifc-lite/hout-percentage).
+  // APPENDED so the frozen Alt+1..0 mapping stays intact (no Alt shortcut).
+  // Flag-free like 'cost' above: docks in the right pane, wide for its table.
+  { id: 'timberFraction', title: 'Timber fraction', short: 'Timber', Icon: Trees, group: 'inspect', region: 'side', prefersWide: true },
 ];
 
 // The bottom strip (Script / Schedule / Lists) is table-driven; the id union and
