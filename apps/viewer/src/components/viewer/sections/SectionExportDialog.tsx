@@ -28,6 +28,7 @@ import {
   loadExportSettings, normalizeSettings, sectionsFileStem, storeExportSettings, type SectionExportSettings,
 } from '@/lib/sections/storage';
 import { useViewerStore } from '@/store';
+import { SectionColourTable } from './SectionColourTable';
 import { SectionExportReport } from './SectionExportReport';
 
 export interface SectionExportDialogProps {
@@ -84,12 +85,15 @@ export function SectionExportDialog({ open, onOpenChange }: SectionExportDialogP
         toast.error(t('sectionsExport.noGeometry'));
         return;
       }
-      const { exporteer } = await import('@ifc-lite/snede-export');
+      const { exporteer, STANDAARD_KLEUREN } = await import('@ifc-lite/snede-export');
       const planes = state.savedSections.filter((sec) => sec.exported).map(toSnedevlak);
       const { dxf, verslag } = await exporteer(source.meshes, source.coordinateInfo, planes, {
         blad: { plannen: s.plans === 'row' ? 'rij' : 'wereld', tussenruimte: s.gap },
         annotatie: { teksthoogte: s.textHeight, driehoek: s.triangleSize },
-        dxf: { eenheid: s.unit, verborgenLijnen: s.hiddenLines, streeppatroon: { streep: s.dash, gat: s.dashGap } },
+        dxf: {
+          eenheid: s.unit, verborgenLijnen: s.hiddenLines, streeppatroon: { streep: s.dash, gat: s.dashGap },
+          kleuren: { ...STANDAARD_KLEUREN, ...s.classColours },
+        },
         zicht: { verborgenBinnenSnede: s.hiddenInsideCut },
         diagnose: source.diagnostics,
         herstel: source.herstel,
@@ -171,6 +175,7 @@ export function SectionExportDialog({ open, onOpenChange }: SectionExportDialogP
               <Label className="w-48" htmlFor="sections-export-hidden">{t('sectionsExport.exportHidden')}</Label>
               <Switch id="sections-export-hidden" checked={settings.exportHidden} onCheckedChange={(v) => set('exportHidden', v)} />
             </div>
+            <SectionColourTable colours={settings.classColours} onChange={(c) => set('classColours', c)} />
           </div>
         )}
 

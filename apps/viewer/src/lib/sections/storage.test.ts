@@ -22,6 +22,12 @@ describe('normalizeSettings', () => {
     assert.equal(s.hiddenLines, false);
   });
 
+  it('keeps only valid class colours (IfcXxx, ACI 1-255)', () => {
+    const s = normalizeSettings({ classColours: { IfcBeam: 3, IfcPlate: 0, IfcWall: 256, IfcSlab: 2.5, Foo: 4, IfcDoor: 30 } });
+    assert.deepEqual(s.classColours, { IfcBeam: 3, IfcDoor: 30 });
+    assert.deepEqual(normalizeSettings({ classColours: 'x' }).classColours, {});
+  });
+
   it('defaults match the agreed drawing conventions', () => {
     const d = DEFAULT_SECTION_EXPORT_SETTINGS;
     assert.deepEqual([d.unit, d.gap, d.textHeight, d.triangleSize, d.dash, d.dashGap], ['mm', 10_000, 500, 500, 50, 25]);

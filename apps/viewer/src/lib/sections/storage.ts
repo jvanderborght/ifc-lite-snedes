@@ -83,14 +83,27 @@ export interface SectionExportSettings {
   /** Dash and gap of hidden lines, mm (model size). */
   dash: number;
   dashGap: number;
+  /** ACI colour per IFC class (IfcPascalCase), on top of the built-in table. */
+  classColours: Record<string, number>;
 }
 
 export const DEFAULT_SECTION_EXPORT_SETTINGS: Readonly<SectionExportSettings> = {
   unit: 'mm', plans: 'row', gap: 10_000, textHeight: 500, triangleSize: 500,
   hiddenLines: false, hiddenInsideCut: false, exportHidden: false, dash: 50, dashGap: 25,
+  classColours: {},
 };
 
 const positive = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : fallback);
+
+/** Keep only `IfcXxx` keys with an ACI colour index 1..255. */
+function validColours(raw: unknown): Record<string, number> {
+  if (typeof raw !== 'object' || raw === null) return {};
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (/^Ifc[A-Za-z]+$/.test(k) && Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 255) out[k] = v as number;
+  }
+  return out;
+}
 
 /** Validate a stored or edited settings object field by field. */
 export function normalizeSettings(raw: unknown): SectionExportSettings {
@@ -107,6 +120,7 @@ export function normalizeSettings(raw: unknown): SectionExportSettings {
     exportHidden: typeof r.exportHidden === 'boolean' ? r.exportHidden : d.exportHidden,
     dash: positive(r.dash, d.dash),
     dashGap: positive(r.dashGap, d.dashGap),
+    classColours: validColours(r.classColours),
   };
 }
 

@@ -4,7 +4,7 @@
 
 export { tekenSnede, geplaatsteMeshes } from './genereer.js';
 export type { Lijn, LijnSoort } from './genereer.js';
-export { schrijfDxf, STANDAARD_KLEUREN, MM_PER } from './dxf.js';
+export { schrijfDxf, STANDAARD_KLEUREN, MM_PER, klasseNaam } from './dxf.js';
 export type { Eenheid } from './dxf/r2000.js';
 export type { DxfOpties } from './dxf.js';
 export { vlakUitTekst, tekenassen, vlakUitHalfruimte, naarRenderPunt, naarRenderRichting, vanRenderPunt, vanRenderRichting } from './vlak.js';
