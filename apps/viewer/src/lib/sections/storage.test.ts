@@ -32,5 +32,8 @@ describe('normalizeSettings', () => {
     const d = DEFAULT_SECTION_EXPORT_SETTINGS;
     assert.deepEqual([d.unit, d.gap, d.textHeight, d.triangleSize, d.dash, d.dashGap], ['mm', 10_000, 500, 500, 50, 25]);
     assert.equal(d.hiddenInsideCut, false);
+    assert.equal(d.hatch, 'none');
+    assert.equal(d.partsAsModelled, true);
+    assert.equal(normalizeSettings({ hatch: 'cross' }).hatch, 'none');
   });
 });

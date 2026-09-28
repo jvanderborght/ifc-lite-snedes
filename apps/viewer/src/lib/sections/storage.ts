@@ -63,6 +63,7 @@ export function storeSavedSections(modelKey: string, sections: readonly SavedSec
 
 export type SectionExportUnit = 'mm' | 'cm' | 'm';
 export type PlanPlacement = 'row' | 'world';
+export type HatchKind = 'none' | 'ansi31' | 'solid';
 
 export interface SectionExportSettings {
   unit: SectionExportUnit;
@@ -85,12 +86,25 @@ export interface SectionExportSettings {
   dashGap: number;
   /** ACI colour per IFC class (IfcPascalCase), on top of the built-in table. */
   classColours: Record<string, number>;
+  /**
+   * Draw parts aggregated under an element with openings as modelled
+   * (rebuilt from their B-rep) instead of cut by the element's openings.
+   * Right for timber-frame exports (hsbCAD), whose parts are already cut.
+   */
+  partsAsModelled: boolean;
+  /** Hatch cut faces: none, the ANSI31 45 degree pattern, or solid. */
+  hatch: HatchKind;
+  /** ANSI31 scale in model mm per pattern unit (20: lines 63.5 mm apart). */
+  hatchScale: number;
 }
 
 export const DEFAULT_SECTION_EXPORT_SETTINGS: Readonly<SectionExportSettings> = {
   unit: 'mm', plans: 'row', gap: 10_000, textHeight: 500, triangleSize: 500,
   hiddenLines: false, hiddenInsideCut: false, exportHidden: false, dash: 50, dashGap: 25,
   classColours: {},
+  partsAsModelled: true,
+  hatch: 'none',
+  hatchScale: 20,
 };
 
 const positive = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : fallback);
@@ -121,6 +135,9 @@ export function normalizeSettings(raw: unknown): SectionExportSettings {
     dash: positive(r.dash, d.dash),
     dashGap: positive(r.dashGap, d.dashGap),
     classColours: validColours(r.classColours),
+    partsAsModelled: typeof r.partsAsModelled === 'boolean' ? r.partsAsModelled : d.partsAsModelled,
+    hatch: r.hatch === 'ansi31' || r.hatch === 'solid' || r.hatch === 'none' ? r.hatch : d.hatch,
+    hatchScale: positive(r.hatchScale, d.hatchScale),
   };
 }
 

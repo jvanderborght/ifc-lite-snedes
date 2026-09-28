@@ -55,6 +55,17 @@ describe('schrijfDxf', () => {
     expect(m).toContain(' 40\n0.15\n 49\n0.1\n 74\n0\n 49\n-0.05\n');
   });
 
+  it('hatches closed cut outlines per element on its own layer, only when asked', () => {
+    expect(schrijfDxf(vierkant)).not.toContain('\nHATCH\n');
+    const dxf = schrijfDxf(vierkant, { arcering: { soort: 'ansi31' } });
+    expect(dxf.match(/\nHATCH\n/g)).toHaveLength(1);
+    expect(dxf).toContain('\nARCERING_IfcWall\n');
+    expect(dxf).toContain('\nANSI31\n');
+    expect(dxf).toContain('\n 41\n20.0\n');          // pattern scale in model mm
+    const vol = schrijfDxf(vierkant, { arcering: { soort: 'vol' }, eenheid: 'm' });
+    expect(vol).toContain('\nSOLID\n');
+  });
+
   it('escapes non-ASCII text for the ANSI_1252 code page', () => {
     const dxf = schrijfDxf([], {
       annotaties: [{ soort: 'tekst', laag: 'titel', p: { x: 0, y: 0 }, hoogte: 250, waarde: 'Gevel é' }],

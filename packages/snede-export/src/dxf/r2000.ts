@@ -111,6 +111,36 @@ export class DxfR2000 {
     this.entiteiten.push(g.join('\n'));
   }
 
+  /**
+   * HATCH over one or more closed loops, odd-parity ("normal" style), so
+   * loops inside loops come out as holes. `ansi31`: the predefined 45 degree
+   * pattern, `schaal` times its base spacing of 3.175 drawing units; `vol`:
+   * solid fill.
+   */
+  arcering(lussen: Punt[][], laag: string, patroon: { soort: 'ansi31'; schaal: number } | { soort: 'vol' }): void {
+    const geldig = lussen.filter((l) => l.length >= 3);
+    if (!geldig.length) return;
+    const vol = patroon.soort === 'vol';
+    const g = [...this.kop('HATCH', laag, 'AcDbHatch'),
+      '10', '0.0', '20', '0.0', '30', '0.0', '210', '0.0', '220', '0.0', '230', '1.0',
+      '2', vol ? 'SOLID' : 'ANSI31', '70', vol ? '1' : '0', '71', '0', '91', String(geldig.length)];
+    for (const lus of geldig) {
+      // 92 = 2: polyline boundary; 72 0 = no bulges; 73 1 = closed; 97 0 = no source objects.
+      g.push('92', '2', '72', '0', '73', '1', '93', String(lus.length));
+      for (const p of lus) { this.omvat(p); g.push('10', getal(p.x), '20', getal(p.y)); }
+      g.push('97', '0');
+    }
+    g.push('75', '0', '76', '1');
+    if (!vol) {
+      const s = patroon.schaal;
+      const d = 2.2450640303 * s;                  // ANSI31 line offset (3.175 / sqrt 2) per axis
+      g.push('52', '0.0', '41', getal(s), '77', '0', '78', '1',
+        '53', '45.0', '43', '0.0', '44', '0.0', '45', getal(-d), '46', getal(d), '79', '0');
+    }
+    g.push('98', '0');
+    this.entiteiten.push(g.join('\n'));
+  }
+
   tekst(p: Punt, hoogte: number, waarde: string, laag: string, opties: TekstOpties = {}): void {
     this.omvat(p);
     const h = opties.horizontaal ?? 0;

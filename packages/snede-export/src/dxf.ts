@@ -41,6 +41,12 @@ export interface DxfOpties {
   annotaties?: Annotatie[];
   /** Dash and gap of hidden lines in model mm. Default 50 / 25 (1 / 0.5 mm on paper at 1:50). */
   streeppatroon?: { streep: number; gat: number };
+  /**
+   * Hatch the cut faces: per element one HATCH over its closed cut outlines
+   * on layer ARCERING_<class>. `ansi31` scale is in model mm per pattern
+   * unit (default 20: lines 63.5 mm apart). Default: no hatching.
+   */
+  arcering?: { soort: 'ansi31'; schaal?: number } | { soort: 'vol' };
 }
 
 export const STANDAARD_STREEPPATROON = { streep: 50, gat: 25 } as const;
@@ -86,6 +92,21 @@ export function schrijfDxf(lijnen: Lijn[], opties: DxfOpties = {}): string {
     const punten = p.punten.map(schaal);
     if (punten.length === 2 && !p.gesloten) dxf.lijn(punten[0], punten[1], laag);
     else dxf.polylijn(punten, p.gesloten, laag);
+  }
+  if (opties.arcering) {
+    const perElement = new Map<number, { klasse: string; lussen: Punt[][] }>();
+    for (const p of maakPolylijnen(lijnen.filter((l) => l.soort === 'snede'))) {
+      if (!p.gesloten) continue;
+      const e = perElement.get(p.entityId) ?? { klasse: klasseNaam(p.ifcType), lussen: [] };
+      e.lussen.push(p.punten.map(schaal));
+      perElement.set(p.entityId, e);
+    }
+    const patroon = opties.arcering.soort === 'vol'
+      ? { soort: 'vol' as const }
+      : { soort: 'ansi31' as const, schaal: (opties.arcering.schaal ?? 20) * f };
+    for (const { klasse, lussen } of perElement.values()) {
+      dxf.arcering(lussen, dxf.laag(`ARCERING_${klasse}`, kleuren[klasse] ?? 7, 9), patroon);
+    }
   }
   for (const a of opties.annotaties ?? []) {
     const stijl = ANNOTATIELAGEN[a.laag];

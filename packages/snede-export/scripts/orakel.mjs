@@ -12,7 +12,8 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { GeometryProcessor } from '@ifc-lite/geometry';
-import { geplaatsteMeshes, schrijfDxf, tekenSnede, vlakUitTekst } from '../dist/index.js';
+import { IfcParser } from '@ifc-lite/parser';
+import { geplaatsteMeshes, herstelOnderdelen, schrijfDxf, tekenSnede, vlakUitTekst } from '../dist/index.js';
 
 const [ifcPad, uitPad, vlakTekst, diepteTekst] = process.argv.slice(2);
 if (!ifcPad || !uitPad || !vlakTekst) {
@@ -25,7 +26,12 @@ const gp = new GeometryProcessor();
 await gp.init();
 const resultaat = await gp.process(new Uint8Array(await readFile(ifcPad)));
 gp.dispose();
-const meshes = geplaatsteMeshes(resultaat.meshes);
+// Rebuild parts ifc-lite cut a second time with their host's openings (herstel.ts).
+const bytes2 = new Uint8Array(await readFile(ifcPad));
+const store = await new IfcParser().parseColumnar(bytes2.buffer.slice(0));
+const hersteld = herstelOnderdelen(resultaat.meshes, store, resultaat.coordinateInfo, 0);
+console.log(`herbouwd uit B-rep: ${hersteld.hersteld.length} onderdelen`);
+const meshes = geplaatsteMeshes(hersteld.meshes);
 const t1 = performance.now();
 console.log(`geometrie: ${meshes.length} meshes in ${((t1 - t0) / 1000).toFixed(1)} s`);
 console.log('coordinateInfo:', JSON.stringify({

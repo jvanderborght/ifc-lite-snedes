@@ -93,10 +93,12 @@ export function SectionExportDialog({ open, onOpenChange }: SectionExportDialogP
         dxf: {
           eenheid: s.unit, verborgenLijnen: s.hiddenLines, streeppatroon: { streep: s.dash, gat: s.dashGap },
           kleuren: { ...STANDAARD_KLEUREN, ...s.classColours },
+          arcering: s.hatch === 'none' ? undefined
+            : s.hatch === 'solid' ? { soort: 'vol' } : { soort: 'ansi31', schaal: s.hatchScale },
         },
         zicht: { verborgenBinnenSnede: s.hiddenInsideCut },
         diagnose: source.diagnostics,
-        herstel: source.herstel,
+        herstel: s.partsAsModelled ? source.herstel : [],
       });
       // The mesh set arrives with hidden elements already removed, so the count comes from the source.
       verslag.verborgenNietGeexporteerd = source.hiddenLeftOut.size;
@@ -125,7 +127,7 @@ export function SectionExportDialog({ open, onOpenChange }: SectionExportDialogP
         {done ? (
           <SectionExportReport report={done.report} file={done.file} diagnosticsIdOffset={done.diagnosticsIdOffset} />
         ) : (
-          <div key={formKey} className="grid gap-3 py-2">
+          <div key={formKey} className="grid max-h-[65vh] gap-3 overflow-y-auto py-2 pr-1">
             <div className="flex items-center gap-4">
               <Label className="w-48">{t('sectionsExport.unit')}</Label>
               <Select value={settings.unit} onValueChange={(v) => set('unit', v as SectionExportSettings['unit'])}>
@@ -174,6 +176,27 @@ export function SectionExportDialog({ open, onOpenChange }: SectionExportDialogP
             <div className="flex items-center gap-4">
               <Label className="w-48" htmlFor="sections-export-hidden">{t('sectionsExport.exportHidden')}</Label>
               <Switch id="sections-export-hidden" checked={settings.exportHidden} onCheckedChange={(v) => set('exportHidden', v)} />
+            </div>
+            <div className="flex items-center gap-4">
+              <Label className="w-48">{t('sectionsExport.hatch')}</Label>
+              <Select value={settings.hatch} onValueChange={(v) => set('hatch', v as SectionExportSettings['hatch'])}>
+                <SelectTrigger className="h-8 w-40"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t('sectionsExport.hatchNone')}</SelectItem>
+                  <SelectItem value="ansi31">{t('sectionsExport.hatchAnsi31')}</SelectItem>
+                  <SelectItem value="solid">{t('sectionsExport.hatchSolid')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {settings.hatch === 'ansi31' && (
+              <NumberField id="sections-hatch-scale" label={t('sectionsExport.hatchScale')} value={settings.hatchScale} onChange={(v) => set('hatchScale', v)} />
+            )}
+            <div className="flex items-start gap-4">
+              <Label className="w-48" htmlFor="sections-parts-as-modelled">{t('sectionsExport.partsAsModelled')}</Label>
+              <div className="flex flex-1 flex-col gap-1">
+                <Switch id="sections-parts-as-modelled" checked={settings.partsAsModelled} onCheckedChange={(v) => set('partsAsModelled', v)} />
+                <p className="text-xs text-muted-foreground">{t('sectionsExport.partsAsModelledHint')}</p>
+              </div>
             </div>
             <SectionColourTable colours={settings.classColours} onChange={(c) => set('classColours', c)} />
           </div>
