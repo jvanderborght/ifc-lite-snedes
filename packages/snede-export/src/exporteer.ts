@@ -15,6 +15,7 @@ import { annotaties, type AnnotatieOpties } from './markering.js';
 import { maakPolylijnen } from './polylijnen.js';
 import type { Snedevlak } from './vlak.js';
 import { geometrieUitDiagnose, type ExportVerslag, type SnedeVerslag } from './verslag.js';
+import { herstelOnderdelen, type HerstelStore } from './herstel.js';
 import type { ZichtOpties } from './zicht/index.js';
 
 export interface ExportOpties {
@@ -26,6 +27,11 @@ export interface ExportOpties {
   zicht?: ZichtOpties;
   /** ifc-lite's geometry diagnostics for this model, if the caller has them. */
   diagnose?: GeometryDiagnostics;
+  /**
+   * Data stores to rebuild pre-cut parts from (see herstel.ts), one per
+   * model with its id offset. Without it, ifc-lite's meshes are used as is.
+   */
+  herstel?: { store: HerstelStore; idOffset: number }[];
 }
 
 /**
@@ -49,6 +55,12 @@ export async function exporteer(
   opties: ExportOpties = {},
 ): Promise<{ dxf: string; verslag: ExportVerslag }> {
   const t0 = performance.now();
+  let hersteld = 0;
+  for (const { store, idOffset } of opties.herstel ?? []) {
+    const r = herstelOnderdelen(alleMeshes, store, info, idOffset);
+    alleMeshes = r.meshes;
+    hersteld += r.hersteld.length;
+  }
   const verborgen = opties.verborgenElementen;
   const nietGetekend = new Map<string, Set<number>>();
   const verborgenGeteld = new Set<number>();
@@ -103,6 +115,7 @@ export async function exporteer(
       nietGetekend: [...nietGetekend].map(([ifcType, ids]) => ({ ifcType, aantal: ids.size }))
         .sort((a, b) => b.aantal - a.aantal),
       verborgenNietGeexporteerd: verborgenGeteld.size,
+      herbouwdUitBrep: hersteld,
       geometrie: geometrieUitDiagnose(opties.diagnose),
       waarschuwingen,
       rekentijdMs: performance.now() - t0,

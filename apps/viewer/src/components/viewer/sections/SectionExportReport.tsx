@@ -110,6 +110,9 @@ export function SectionExportReport({ report, file, diagnosticsIdOffset }: Secti
           {t('sectionsReport.notDrawn', { list: report.nietGetekend.map((n) => `${n.ifcType} ${n.aantal}`).join(', ') })}
         </p>
       )}
+      {report.herbouwdUitBrep > 0 && (
+        <p className="text-xs text-muted-foreground">{t('sectionsReport.rebuilt', { count: report.herbouwdUitBrep })}</p>
+      )}
       {report.verborgenNietGeexporteerd > 0 && (
         <p className="text-xs text-muted-foreground">
           {t('sectionsReport.hiddenLeftOut', { count: report.verborgenNietGeexporteerd })}

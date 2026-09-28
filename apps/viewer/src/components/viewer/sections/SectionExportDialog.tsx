@@ -92,6 +92,7 @@ export function SectionExportDialog({ open, onOpenChange }: SectionExportDialogP
         dxf: { eenheid: s.unit, verborgenLijnen: s.hiddenLines, streeppatroon: { streep: s.dash, gat: s.dashGap } },
         zicht: { verborgenBinnenSnede: s.hiddenInsideCut },
         diagnose: source.diagnostics,
+        herstel: source.herstel,
       });
       // The mesh set arrives with hidden elements already removed, so the count comes from the source.
       verslag.verborgenNietGeexporteerd = source.hiddenLeftOut.size;

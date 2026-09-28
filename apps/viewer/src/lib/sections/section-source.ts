@@ -23,11 +23,12 @@
  */
 
 import type { CoordinateInfo, GeometryDiagnostics, MeshData } from '@ifc-lite/geometry';
-import { vlakUitHalfruimte } from '@ifc-lite/snede-export';
+import { vlakUitHalfruimte, type HerstelStore } from '@ifc-lite/snede-export';
 import { collectViewMeshes } from '@/lib/export/view-pdf/collect-view-meshes';
 import { readViewPdfSource, resolveSectionInput, visibleCoordinateInfo } from '@/lib/export/view-pdf/view-pdf-export-source';
 import { resolveKeptHalfSpace } from '@/lib/export/view-pdf/view-section-plane';
 import type { useViewerStore } from '@/store';
+import { displayedTranslation } from '@/lib/model-placement/state';
 import type { WorldVec3 } from './saved-section';
 
 type ViewerState = ReturnType<typeof useViewerStore.getState>;
@@ -41,6 +42,11 @@ export interface SectionExportSource {
   diagnostics: GeometryDiagnostics | undefined;
   /** Add to a diagnostics product id (local to that model) to get a global id. */
   diagnosticsIdOffset: number;
+  /**
+   * Per visible model its data store, so the export can rebuild parts that
+   * ifc-lite cut a second time with their host's openings (herstel.ts).
+   */
+  herstel: { store: HerstelStore; idOffset: number }[];
 }
 
 /** Meshes and frame for an export. `includeHidden` keeps elements hidden in the viewer. */
@@ -59,8 +65,15 @@ export function readSectionExportSource(state: ViewerState, includeHidden: boole
     hiddenLeftOut,
     diagnostics: firstVisibleModel(state)?.diagnostics ?? undefined,
     diagnosticsIdOffset: firstVisibleModel(state)?.idOffset ?? 0,
+    herstel: [...state.models.values()]
+      // A model moved in the workspace keeps ifc-lite's (placed) meshes: the
+      // rebuilt ones come straight from the file, without that translation.
+      .filter((m) => m.visible && m.ifcDataStore && isUnmoved(displayedTranslation(state.modelPlacement, m.id)))
+      .map((m) => ({ store: m.ifcDataStore as HerstelStore, idOffset: m.idOffset ?? 0 })),
   };
 }
+
+const isUnmoved = (t: readonly [number, number, number]): boolean => t[0] === 0 && t[1] === 0 && t[2] === 0;
 
 function firstVisibleModel(state: ViewerState) {
   for (const model of state.models.values()) if (model.visible && model.geometryResult) return model;

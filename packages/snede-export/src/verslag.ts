@@ -36,6 +36,8 @@ export interface ExportVerslag {
   nietGetekend: { ifcType: string; aantal: number }[];
   /** Elements left out because they are hidden in the viewer. */
   verborgenNietGeexporteerd: number;
+  /** Pre-cut parts whose mesh was rebuilt from the authored B-rep (herstel.ts). */
+  herbouwdUitBrep: number;
   /** From ifc-lite's geometry diagnostics, when supplied. */
   geometrie?: {
     /** Openings that failed to cut into a host they do overlap. */
@@ -92,6 +94,7 @@ export function verslagAlsTekst(v: ExportVerslag): string {
   if (v.nietGetekend.length) {
     r.push(`Niet getekend (bewust): ${v.nietGetekend.map((n) => `${n.ifcType} ${n.aantal}`).join(', ')}`);
   }
+  if (v.herbouwdUitBrep) r.push(`Uit de B-rep herbouwd (door ifc-lite dubbel gesneden): ${v.herbouwdUitBrep} onderdelen`);
   if (v.verborgenNietGeexporteerd) r.push(`Verborgen in de viewer, niet geëxporteerd: ${v.verborgenNietGeexporteerd} elementen`);
   const g = v.geometrie;
   if (g) {

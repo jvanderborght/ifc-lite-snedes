@@ -19,3 +19,5 @@ export type { ExportOpties } from './exporteer.js';
 export { verslagAlsTekst, geometrieUitDiagnose } from './verslag.js';
 export type { ExportVerslag, SnedeVerslag } from './verslag.js';
 export { tekenSnedeDetail, NIET_TEKENEN } from './genereer.js';
+export { herstelOnderdelen, dubbelGesnedenOnderdelen, vlakkenNaarMesh } from './herstel.js';
+export type { HerstelStore } from './herstel.js';

@@ -1,8 +1,8 @@
 {
-  "name": "@ifc-lite/snede-export",
+  "name": "@ifc-lite/wand-geometrie",
   "version": "0.1.0",
   "private": true,
-  "description": "Multiple section planes to one DXF sheet (mm, per-IFC-class layers and colours, polylines)",
+  "description": "Shared wall-plane geometry for the wall analysis: wall frame, exact projections by row spans, authored faceted B-reps, holes and region operations",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -16,20 +16,10 @@
   "scripts": {
     "build": "pnpm exec tsc",
     "typecheck": "node ../../scripts/typecheck-tests.mjs",
-    "test": "vitest run",
-    "orakel": "node scripts/orakel.mjs"
-  },
-  "dependencies": {
-    "@ifc-lite/data": "workspace:^",
-    "@ifc-lite/drawing-2d": "workspace:^",
-    "@ifc-lite/geometry": "workspace:^",
-    "@ifc-lite/wand-geometrie": "workspace:^",
-    "earcut": "^3.0.2"
+    "test": "vitest run"
   },
   "devDependencies": {
-    "@ifc-lite/parser": "workspace:^",
     "@types/node": "^24.0.0",
-    "tsx": "^4.23.13",
     "typescript": "^6.0.3",
     "vitest": "^5.0.1"
   },

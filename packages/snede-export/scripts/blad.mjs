@@ -8,11 +8,12 @@
  *
  *   node scripts/blad.mjs <model.ifc> <out.dxf> "A:x=22600" "B:y=15400" "P:z=1000"
  *        [--diepte 0] [--plannen rij|wereld] [--eenheid mm|cm|m] [--tussenruimte 10000]
- *        [--tekst 500] [--driehoek 500] [--verborgen] [--wel-verborgen-in-snede] [--diagnose]
+ *        [--tekst 500] [--driehoek 500] [--verborgen] [--wel-verborgen-in-snede] [--diagnose] [--geen-herstel]
  */
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { GeometryProcessor } from '@ifc-lite/geometry';
+import { IfcParser } from '@ifc-lite/parser';
 import { exporteer, verslagAlsTekst, vlakUitTekst } from '../dist/index.js';
 
 const args = process.argv.slice(2);
@@ -29,6 +30,8 @@ const verborgenLijnen = args.includes('--verborgen');
 if (verborgenLijnen) args.splice(args.indexOf('--verborgen'), 1);
 const verborgenBinnenSnede = args.includes('--wel-verborgen-in-snede');
 if (verborgenBinnenSnede) args.splice(args.indexOf('--wel-verborgen-in-snede'), 1);
+const metHerstel = !args.includes('--geen-herstel');
+if (!metHerstel) args.splice(args.indexOf('--geen-herstel'), 1);
 const metDiagnose = args.includes('--diagnose');
 if (metDiagnose) args.splice(args.indexOf('--diagnose'), 1);
 const tussenruimte = Number(optie('tussenruimte', 10000));
@@ -41,6 +44,8 @@ if (!ifcPad || !uitPad || !vlakken.length) {
 }
 
 const bytes = new Uint8Array(await readFile(ifcPad));
+// The data store lets the export rebuild pre-cut parts from their B-rep (herstel.ts).
+const store = metHerstel ? await new IfcParser().parseColumnar(bytes.buffer.slice(0)) : null;
 const gp = new GeometryProcessor();
 await gp.init();
 const resultaat = await gp.process(bytes);
@@ -55,6 +60,7 @@ const { dxf, verslag } = await exporteer(resultaat.meshes, resultaat.coordinateI
     dxf: { eenheid, verborgenLijnen },
     zicht: { verborgenBinnenSnede },
     diagnose,
+    herstel: store ? [{ store, idOffset: 0 }] : [],
   });
 await writeFile(uitPad, dxf, 'utf8');
 console.log(verslagAlsTekst(verslag));

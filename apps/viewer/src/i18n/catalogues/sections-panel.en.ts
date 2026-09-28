@@ -70,6 +70,7 @@ export const sectionsPanelEn = {
   'sectionsReport.smallGaps': '{count} other cut outline(s) only open by gaps up to {mm} mm (ignored).',
   'sectionsReport.notDrawn': 'Not drawn by design: {list}',
   'sectionsReport.hiddenLeftOut': '{count} element(s) hidden in the viewer were left out.',
+  'sectionsReport.rebuilt': '{count} pre-cut part(s) drawn from their own geometry: the viewer cuts the openings of their wall through them a second time.',
   'sectionsReport.failedOpenings': '{count} opening(s) could not be cut (their void may show as solid):',
   'sectionsReport.openingsOutside': '{count} opening(s) do not touch their element (no effect).',
   'sectionsReport.openingFailure': '{failed} of {total} openings failed',
