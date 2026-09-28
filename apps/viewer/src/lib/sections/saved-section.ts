@@ -96,7 +96,33 @@ const isFiniteVec = (v: unknown): v is WorldVec3 =>
   typeof v === 'object' && v !== null
   && ['x', 'y', 'z'].every((k) => Number.isFinite((v as Record<string, unknown>)[k]));
 
-/** Parse and validate a sections file; never throws. */
+const vecFromArray = (v: unknown): WorldVec3 | null =>
+  Array.isArray(v) && v.length === 3 && v.every(Number.isFinite) ? { x: v[0], y: v[1], z: v[2] } : null;
+
+/**
+ * Section lists of the earlier desktop tool: `{ snedes: [{ naam, oorsprong,
+ * normaal, diepte }] }`, origin in IFC world mm, `normaal` already the view
+ * direction (its flip folded in). Grid and offset fields are ignored.
+ * Returns null when the data is not in that format.
+ */
+function parseLegacySections(data: unknown): ParseSectionsResult | null {
+  const list = (data as { snedes?: unknown } | null)?.snedes;
+  if (!Array.isArray(list)) return null;
+  const sections: Omit<SavedSection, 'id'>[] = [];
+  for (const [i, raw] of list.entries()) {
+    const s = raw as { naam?: unknown; oorsprong?: unknown; normaal?: unknown; diepte?: unknown };
+    const origin = vecFromArray(s.oorsprong);
+    const direction = vecFromArray(s.normaal);
+    if (typeof s.naam !== 'string' || !origin || !direction || Math.hypot(direction.x, direction.y, direction.z) === 0) {
+      return { ok: false, error: `Section ${i + 1} is incomplete.` };
+    }
+    const depth = typeof s.diepte === 'number' && Number.isFinite(s.diepte) && s.diepte >= 0 ? s.diepte : 0;
+    sections.push({ name: s.naam, origin, direction, depth, shown: true, exported: true });
+  }
+  return { ok: true, sections };
+}
+
+/** Parse and validate a sections file (or an earlier desktop-tool list); never throws. */
 export function parseSections(text: string): ParseSectionsResult {
   let data: unknown;
   try {
@@ -104,6 +130,8 @@ export function parseSections(text: string): ParseSectionsResult {
   } catch (err) {
     return { ok: false, error: `Not a JSON file: ${err instanceof Error ? err.message : String(err)}` };
   }
+  const legacy = parseLegacySections(data);
+  if (legacy) return legacy;
   const file = data as Partial<SectionsFile> | null;
   if (!file || file.format !== SECTIONS_FILE_FORMAT) return { ok: false, error: 'Not an ifc-lite sections file.' };
   if (typeof file.version !== 'number' || file.version > SECTIONS_FILE_VERSION) {
