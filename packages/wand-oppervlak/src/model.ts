@@ -51,6 +51,7 @@ export interface WallModelOptions {
 export const DEFAULT_WALL_TYPES = ['IFCWALL', 'IFCWALLSTANDARDCASE', 'IFCWALLELEMENTEDCASE'];
 export const DEFAULT_EXCLUDED_PART_TYPES = ['IfcOpeningElement', 'IfcDoor', 'IfcWindow', 'IfcVirtualElement'];
 export const DEFAULT_ZONE = { psetName: 'Data', propertyName: 'Zone' };
+const OPENING_MARKER_TYPES = new Set(['IfcOpeningElement', 'IfcDoor', 'IfcWindow']);
 
 /** Areas an exporter wrote itself, for comparison. Areas m², lengths m. */
 export interface DeclaredQuantities {
@@ -74,8 +75,16 @@ export interface WallParts {
   partIds: number[];
   /** Zone text per part id; parts without a zone are absent. */
   zones: Map<number, string>;
+  /** IFC type name per part id. */
+  partTypes: Map<number, string>;
   /** `IfcOpeningElement`s voiding the wall. */
   openingIds: number[];
+  /** Everything that marks an opening in the wall: the voiding openings plus
+   *  any `IfcOpeningElement`, `IfcDoor` or `IfcWindow` the wall aggregates
+   *  (hsbCAD puts its doors, windows and some openings there). */
+  openingMarkerIds: number[];
+  /** IFC type name per marker id. */
+  markerTypes: Map<number, string>;
   /** Wall that aggregates this one (Revit stacked walls), else null. Such a
    *  wall's parts are also counted under its parent: totals skip it. */
   parentWallId: number | null;
@@ -126,6 +135,9 @@ export function collectWalls(store: WallAreaStore, options: WallModelOptions = {
       if (seen.has(wallId)) continue;
       seen.add(wallId);
       const partIds = [wallId];
+      const partTypes = new Map<number, string>([[wallId, store.entities.getTypeName(wallId)]]);
+      const markers = new Set<number>();
+      const markerTypes = new Map<number, string>();
       const stack = [wallId];
       const visited = new Set(stack);
       while (stack.length > 0) {
@@ -134,7 +146,11 @@ export function collectWalls(store: WallAreaStore, options: WallModelOptions = {
           if (visited.has(child)) continue;
           visited.add(child);
           stack.push(child);
-          if (!excluded.has(store.entities.getTypeName(child))) partIds.push(child);
+          const type = store.entities.getTypeName(child);
+          if (OPENING_MARKER_TYPES.has(type)) { markers.add(child); markerTypes.set(child, type); }
+          if (excluded.has(type)) continue;
+          partIds.push(child);
+          partTypes.set(child, type);
         }
       }
       const zones = new Map<number, string>();
@@ -146,12 +162,13 @@ export function collectWalls(store: WallAreaStore, options: WallModelOptions = {
       }
       const openingIds = store.relationships.getRelated(wallId, RelationshipType.VoidsElement, 'forward')
         .filter((id) => store.entities.getTypeName(id).startsWith('IfcOpening'));
+      for (const id of openingIds) { markers.add(id); markerTypes.set(id, store.entities.getTypeName(id)); }
       walls.push({
         wallId,
         name: store.entities.getName(wallId),
         globalId: store.entities.getGlobalId(wallId),
         ifcType: store.entities.getTypeName(wallId),
-        partIds, zones, openingIds,
+        partIds, partTypes, zones, openingIds, openingMarkerIds: [...markers], markerTypes,
         parentWallId: store.relationships.getRelated(wallId, RelationshipType.Aggregates, 'inverse')
           .find((id) => wallTypes.includes(store.entities.getTypeName(id).toUpperCase())) ?? null,
         declared: declaredQuantities(store, wallId),

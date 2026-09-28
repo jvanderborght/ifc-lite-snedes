@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { computeWallArea, totalOf, type WallGeometry } from './area.js';
-import type { FaceSet, MeshPiece } from './faces.js';
+import type { FaceSet, MeshPiece } from '@ifc-lite/wand-geometrie';
 import type { WallParts } from './model.js';
 
 type P2 = [number, number];
@@ -47,8 +47,8 @@ function wallOf(parts: Array<{ faces: FaceSet; zone?: string }>, openings: FaceS
   openings.forEach((f, i) => byId.set(100 + i, f));
   const wall: WallParts = {
     wallId: 1, name: 'W', globalId: 'g', ifcType: 'IfcWall',
-    partIds: [1, ...parts.map((_, i) => 10 + i)], zones,
-    openingIds: openings.map((_, i) => 100 + i), parentWallId, declared,
+    partIds: [1, ...parts.map((_, i) => 10 + i)], zones, partTypes: new Map(),
+    openingIds: openings.map((_, i) => 100 + i), openingMarkerIds: openings.map((_, i) => 100 + i), markerTypes: new Map(), parentWallId, declared,
   };
   return { wall, geometry: { meshes: () => [], authored: (id) => byId.get(id) ?? null } };
 }
@@ -138,7 +138,7 @@ describe('computeWallArea', () => {
   });
 
   it('uses the pipeline mesh for a wall with a body of its own, and has no sides without zones', () => {
-    const wall: WallParts = { wallId: 1, name: 'R', globalId: 'g', ifcType: 'IfcWallStandardCase', partIds: [1], zones: new Map(), openingIds: [], parentWallId: null, declared };
+    const wall: WallParts = { wallId: 1, name: 'R', globalId: 'g', ifcType: 'IfcWallStandardCase', partIds: [1], zones: new Map(), partTypes: new Map(), openingIds: [], openingMarkerIds: [], markerTypes: new Map(), parentWallId: null, declared };
     const r = computeWallArea(wall, { meshes: (id) => (id === 1 ? [boxMesh(0, 0, 0, 5, 2.8, 0.1)] : []), authored: () => null });
     expect(r.source).toBe('mesh');
     expect(r.grossArea).toBeCloseTo(14, 6);

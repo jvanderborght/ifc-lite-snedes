@@ -32,11 +32,8 @@
  * is larger than the hole the exporter cut (see `brep.ts`).
  */
 
-import { boxOf, meshFaces, projectFaces, toLocalFaces, type Box, type FaceSet, type MeshPiece } from './faces.js';
-import { findHoles } from './holes.js';
+import { boxOf, findHoles, meshFaces, projectFaces, RowSpans, toLocalFaces, wallFrameFromPoints, type Box, type FaceSet, type MeshPiece } from '@ifc-lite/wand-geometrie';
 import type { WallParts } from './model.js';
-import { RowSpans } from './row-spans.js';
-import { wallFrameFromPoints } from './wall-frame.js';
 
 export interface WallGeometry {
   /** Pipeline mesh pieces of a product (Y-up metres). */

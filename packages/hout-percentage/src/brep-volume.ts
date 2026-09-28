@@ -20,9 +20,9 @@
  * their authored orientation) and p_f any point in the face plane.
  */
 
-export interface EntityReader {
-  getEntity(id: number): { type: string; attributes: readonly unknown[] } | null;
-}
+import type { EntityReader } from '@ifc-lite/wand-geometrie';
+
+export type { EntityReader };
 
 const asRefs = (v: unknown): number[] => (Array.isArray(v) ? v.filter((x): x is number => typeof x === 'number') : []);
 const asRef = (v: unknown): number | null => (typeof v === 'number' ? v : null);

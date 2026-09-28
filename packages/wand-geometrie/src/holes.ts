@@ -32,9 +32,11 @@ export interface HoleResult {
   areas: number[];
 }
 
-interface Gap { row: number; a: number; b: number }
+/** One run of empty space in one row, between two merged spans. */
+export interface Gap { row: number; a: number; b: number }
 
-export function findHoles(spans: RowSpans): HoleResult {
+/** The enclosed holes of `spans`, each as its gaps (unordered). */
+export function holeGaps(spans: RowSpans): Gap[][] {
   const gaps: Gap[] = [];
   const rowStart = new Int32Array(spans.rows + 1);
   const rowFirst = new Float64Array(spans.rows).fill(NaN);
@@ -74,12 +76,19 @@ export function findHoles(spans: RowSpans): HoleResult {
   }
   const outside = new Set<number>();
   for (let i = 0; i < gaps.length; i++) if (exterior[i]) outside.add(find(i));
-  const byRoot = new Map<number, number>();
+  const byRoot = new Map<number, Gap[]>();
   for (let i = 0; i < gaps.length; i++) {
     const r = find(i);
     if (outside.has(r)) continue;
-    byRoot.set(r, (byRoot.get(r) ?? 0) + (gaps[i].b - gaps[i].a) * spans.dh);
+    const list = byRoot.get(r);
+    if (list) list.push(gaps[i]); else byRoot.set(r, [gaps[i]]);
   }
-  const areas = [...byRoot.values()].sort((x, y) => y - x);
+  return [...byRoot.values()];
+}
+
+export function findHoles(spans: RowSpans): HoleResult {
+  const areas = holeGaps(spans)
+    .map((hole) => hole.reduce((s, g) => s + (g.b - g.a) * spans.dh, 0))
+    .sort((x, y) => y - x);
   return { count: areas.length, area: areas.reduce((s, x) => s + x, 0), areas };
 }

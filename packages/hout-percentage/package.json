@@ -17,14 +17,17 @@
     "build": "pnpm exec tsc",
     "typecheck": "node ../../scripts/typecheck-tests.mjs",
     "test": "vitest run",
-    "rapport": "node scripts/rapport.mjs"
+    "rapport": "node scripts/rapport.mjs",
+    "npr": "node scripts/npr.mjs"
   },
   "dependencies": {
     "@ifc-lite/data": "workspace:^",
-    "@ifc-lite/geometry": "workspace:^"
+    "@ifc-lite/geometry": "workspace:^",
+    "@ifc-lite/wand-geometrie": "workspace:^"
   },
   "devDependencies": {
     "@ifc-lite/parser": "workspace:^",
+    "@ifc-lite/wand-oppervlak": "workspace:^",
     "@types/node": "^24.0.0",
     "typescript": "^6.0.3",
     "vitest": "^5.0.1"

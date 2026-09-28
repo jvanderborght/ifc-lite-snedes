@@ -13,8 +13,7 @@
  */
 
 import { meshVolume, type MeshPiece } from './mesh-volume.js';
-import { addProjection, addSection, differenceLength, RowSpans, type LocalTriangles } from './row-spans.js';
-import { toLocal, wallFrameFromPoints, type WallFrame } from './wall-frame.js';
+import { addProjection, addSection, differenceLength, RowSpans, toLocal, wallFrameFromPoints, type LocalTriangles, type WallFrame } from '@ifc-lite/wand-geometrie';
 import type { WallMembers } from './model.js';
 
 export const VARIANT_IDS = [

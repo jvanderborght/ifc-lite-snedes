@@ -242,6 +242,9 @@ importers:
       '@ifc-lite/spatial':
         specifier: workspace:^
         version: link:../../packages/spatial
+      '@ifc-lite/wand-oppervlak':
+        specifier: workspace:^
+        version: link:../../packages/wand-oppervlak
       '@ifc-lite/wasm':
         specifier: workspace:^
         version: link:../../packages/wasm
@@ -1297,10 +1300,16 @@ importers:
       '@ifc-lite/geometry':
         specifier: workspace:^
         version: link:../geometry
+      '@ifc-lite/wand-geometrie':
+        specifier: workspace:^
+        version: link:../wand-geometrie
     devDependencies:
       '@ifc-lite/parser':
         specifier: workspace:^
         version: link:../parser
+      '@ifc-lite/wand-oppervlak':
+        specifier: workspace:^
+        version: link:../wand-oppervlak
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.6
@@ -1939,11 +1948,26 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
+  packages/wand-geometrie:
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.6
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.11(@edge-runtime/vm@3.2.0)(@types/node@24.13.6)(happy-dom@20.14.5)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.1))
+
   packages/wand-oppervlak:
     dependencies:
       '@ifc-lite/data':
         specifier: workspace:^
         version: link:../data
+      '@ifc-lite/wand-geometrie':
+        specifier: workspace:^
+        version: link:../wand-geometrie
     devDependencies:
       '@ifc-lite/geometry':
         specifier: workspace:^
@@ -8517,7 +8541,7 @@ snapshots:
 
   buffer-image-size@0.6.4:
     dependencies:
-      '@types/node': 24.13.6
+      '@types/node': 26.6.2
 
   buffer-indexof-polyfill@1.0.2: {}
 

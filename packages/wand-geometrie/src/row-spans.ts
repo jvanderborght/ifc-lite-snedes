@@ -16,9 +16,6 @@
  *
  * All coordinates are wall-local (along, across, up) in metres; see
  * `wall-frame.ts`.
- *
- * Copied from `@ifc-lite/hout-percentage` (branch `houtpercentage`, not yet
- * merged); the two copies should become one shared wall-analysis module.
  */
 
 /** Intervals closer than this (m) merge: closes float32 seams between the
@@ -172,6 +169,17 @@ export function mergeIntervals(flat: readonly number[]): number[] {
   return out;
 }
 
+/** Length of merged set `a` minus merged set `b`. */
+export function differenceLength(a: readonly number[], b: readonly number[]): number {
+  let total = 0;
+  for (let k = 0; k < a.length; k += 2) {
+    let len = a[k + 1] - a[k];
+    for (let m = 0; m < b.length; m += 2) len -= Math.max(0, Math.min(a[k + 1], b[m + 1]) - Math.max(a[k], b[m]));
+    total += len;
+  }
+  return total;
+}
+
 /** Local triangles: flat xyz (along, across, up) triples, 9 numbers per triangle. */
 export type LocalTriangles = Float64Array;
 
@@ -202,4 +210,58 @@ export function addProjection(target: RowSpans, tris: LocalTriangles, uLo = -Inf
       if (hi > lo) target.add(j, lo, hi);
     }
   }
+}
+
+/**
+ * Add the cross-section of ONE closed mesh at the plane across = `v0`.
+ * Each triangle straddling the plane contributes one segment; per row the
+ * crossings are paired even-odd, which needs no winding and handles holes.
+ * Vertices are classified strictly (>= v0 is "above"), so a vertex on the plane
+ * never produces a zero-length or doubled crossing. Returns the number of rows
+ * that needed the open-surface fallback.
+ */
+export function addSection(target: RowSpans, tris: LocalTriangles, v0: number): number {
+  const hits = new Records(2); // (row, u)
+  let rowLo = Infinity, rowHi = -Infinity;
+  for (let t = 0; t + 8 < tris.length; t += 9) {
+    let n = 0, ua = 0, ha = 0, ub = 0, hb = 0;
+    for (let k = 0; k < 3; k++) {
+      const a = t + 3 * k, b = t + 3 * ((k + 1) % 3);
+      const va = tris[a + 1], vb = tris[b + 1];
+      if ((va >= v0) === (vb >= v0)) continue;
+      const f = (v0 - va) / (vb - va);
+      const u = tris[a] + f * (tris[b] - tris[a]), h = tris[a + 2] + f * (tris[b + 2] - tris[a + 2]);
+      if (n === 0) { ua = u; ha = h; } else { ub = u; hb = h; }
+      n++;
+    }
+    if (n !== 2 || ha === hb) continue; // horizontal segment: no crossing under the half-open rule
+    const [first, last] = target.rowRange(Math.min(ha, hb), Math.max(ha, hb));
+    for (let j = first; j <= last; j++) {
+      const hc = target.centre(j);
+      // Half-open in h so a segment endpoint shared by two segments counts once.
+      if (!((ha <= hc && hc < hb) || (hb <= hc && hc < ha))) continue;
+      hits.push2(j, ua + ((hc - ha) / (hb - ha)) * (ub - ua));
+      if (j < rowLo) rowLo = j;
+      if (j > rowHi) rowHi = j;
+    }
+  }
+  if (hits.count === 0) return 0;
+  // Re-base rows so the buckets cover only this member's rows.
+  for (let i = 0; i < hits.length; i += 2) hits.data[i] -= rowLo;
+  const { start, a } = bucketByRow(hits, rowHi - rowLo + 1);
+  // An odd count means the surface is open on this row (a failed boolean cut
+  // leaves holes): pairing would then run across a gap. Framing members are
+  // convex in section, so the row falls back to the outermost crossings.
+  let repaired = 0;
+  for (let r = 0; r + rowLo <= rowHi; r++) {
+    const s = start[r], e = start[r + 1];
+    if (e === s) continue;
+    if ((e - s) % 2 === 1) {
+      repaired++;
+      target.add(r + rowLo, a[s], a[e - 1]);
+      continue;
+    }
+    for (let k = s; k + 1 < e; k += 2) target.add(r + rowLo, a[k], a[k + 1]);
+  }
+  return repaired;
 }
