@@ -66,6 +66,36 @@ describe('schrijfDxf', () => {
     expect(vol).toContain('\nSOLID\n');
   });
 
+  it('makes the hatch associative to its outline polylines, holes included', () => {
+    const gat = vierkant.map((l) => ({ ...l, a: { x: 250 + l.a.x / 2, y: 250 + l.a.y / 2 }, b: { x: 250 + l.b.x / 2, y: 250 + l.b.y / 2 } }));
+    const open: Lijn = { soort: 'snede', ifcType: 'IFCWALL', entityId: 7, a: { x: 2000, y: 0 }, b: { x: 3000, y: 0 } };
+    const r = schrijfDxf([...vierkant, ...gat, open], { arcering: { soort: 'ansi31' } }).split('\n').map((s) => s.trim());
+    /** Group-code/value pairs of every entity, keyed by handle. */
+    const entiteiten = new Map<string, { type: string; paren: [string, string][] }>();
+    const start = r.indexOf('ENTITIES');
+    let huidig: { type: string; paren: [string, string][] } | undefined;
+    for (let i = start + 1; i < r.length - 1 && r[i + 1] !== 'ENDSEC'; i += 2) {
+      if (r[i] === '0') { huidig = { type: r[i + 1], paren: [] }; continue; }
+      if (r[i] === '5' && huidig) entiteiten.set(r[i + 1], huidig);
+      huidig?.paren.push([r[i], r[i + 1]]);
+    }
+    const [hatchHandle, hatch] = [...entiteiten].find(([, e]) => e.type === 'HATCH')!;
+    const waarde = (e: { paren: [string, string][] }, code: string) => e.paren.find(([c]) => c === code)?.[1];
+    expect(waarde(hatch, '71')).toBe('1');
+    const i97 = hatch.paren.flatMap(([c], i) => (c === '97' ? [i] : []));
+    expect(i97.map((i) => hatch.paren[i][1])).toEqual(['1', '1']);
+    const bronnen = i97.map((i) => hatch.paren[i + 1][1]);
+    for (const b of bronnen) {
+      const pl = entiteiten.get(b)!;
+      expect(pl.type).toBe('LWPOLYLINE');
+      // Reactor block right after the handle, pointing back at the hatch.
+      expect(pl.paren.slice(1, 4)).toEqual([['102', '{ACAD_REACTORS'], ['330', hatchHandle], ['102', '}']]);
+    }
+    // The open cut line is drawn but carries no reactor.
+    const lijn = [...entiteiten.values()].find((e) => e.type === 'LINE')!;
+    expect(lijn.paren.some(([c]) => c === '102')).toBe(false);
+  });
+
   it('writes every layer in ACI 7 in black and white', () => {
     /** ACI colour (group 62) of the LAYER record with this name. */
     const laagkleur = (dxf: string, naam: string): string => {

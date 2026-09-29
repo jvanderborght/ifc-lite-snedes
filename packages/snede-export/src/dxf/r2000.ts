@@ -66,6 +66,11 @@ export class DxfR2000 {
     return (this.volgende++).toString(16).toUpperCase();
   }
 
+  /** Reserve a handle for an entity written later (a hatch its boundaries point to). */
+  reserveer(): string {
+    return this.handle();
+  }
+
   private omvat(p: Punt): void {
     this.min = { x: Math.min(this.min.x, p.x), y: Math.min(this.min.y, p.y) };
     this.max = { x: Math.max(this.max.x, p.x), y: Math.max(this.max.y, p.y) };
@@ -85,8 +90,10 @@ export class DxfR2000 {
     return veilig;
   }
 
-  private kop(type: string, laag: string, subklasse: string): string[] {
-    return ['0', type, '5', this.handle(), '330', SJABLOON_MODELSPACE,
+  /** Entity head; `reactor` is the handle of an associative hatch this entity bounds. */
+  private kop(type: string, laag: string, subklasse: string, handle = this.handle(), reactor?: string): string[] {
+    const reactoren = reactor ? ['102', '{ACAD_REACTORS', '330', reactor, '102', '}'] : [];
+    return ['0', type, '5', handle, ...reactoren, '330', SJABLOON_MODELSPACE,
       '100', 'AcDbEntity', '8', laag, '100', subklasse];
   }
 
@@ -97,10 +104,15 @@ export class DxfR2000 {
       '11', getal(b.x), '21', getal(b.y), '31', '0.0'].join('\n'));
   }
 
-  /** Polyline; `bulges[i]` (optional) is the arc bulge from vertex i to i+1. */
-  polylijn(punten: Punt[], gesloten: boolean, laag: string, bulges?: number[]): void {
-    if (punten.length < 2) return;
-    const g = [...this.kop('LWPOLYLINE', laag, 'AcDbPolyline'),
+  /**
+   * Polyline; `bulges[i]` (optional) is the arc bulge from vertex i to i+1.
+   * `arcering`: handle of the associative hatch this polyline bounds.
+   * Returns the polyline's handle (undefined when nothing was written).
+   */
+  polylijn(punten: Punt[], gesloten: boolean, laag: string, bulges?: number[], arcering?: string): string | undefined {
+    if (punten.length < 2) return undefined;
+    const handle = this.handle();
+    const g = [...this.kop('LWPOLYLINE', laag, 'AcDbPolyline', handle, arcering),
       '90', String(punten.length), '70', gesloten ? '1' : '0', '43', '0.0'];
     punten.forEach((p, i) => {
       this.omvat(p);
@@ -109,6 +121,7 @@ export class DxfR2000 {
       if (b) g.push('42', getal(b));
     });
     this.entiteiten.push(g.join('\n'));
+    return handle;
   }
 
   /**
@@ -116,19 +129,30 @@ export class DxfR2000 {
    * loops inside loops come out as holes. `ansi31`: the predefined 45 degree
    * pattern, `schaal` times its base spacing of 3.175 drawing units; `vol`:
    * solid fill.
+   *
+   * Associative: pass the hatch handle reserved with `reserveer()` and per
+   * loop the handle of the polyline it follows. Those polylines must carry
+   * the hatch handle as reactor (`polylijn(..., arcering)`), so CAD programs
+   * that honour associativity update the hatch when a boundary is edited.
    */
-  arcering(lussen: Punt[][], laag: string, patroon: { soort: 'ansi31'; schaal: number } | { soort: 'vol' }): void {
-    const geldig = lussen.filter((l) => l.length >= 3);
+  arcering(
+    lussen: Punt[][], laag: string, patroon: { soort: 'ansi31'; schaal: number } | { soort: 'vol' },
+    associatief?: { handle: string; bronnen: string[] },
+  ): void {
+    const geldig = lussen.map((punten, i) => ({ punten, bron: associatief?.bronnen[i] }))
+      .filter((l) => l.punten.length >= 3);
     if (!geldig.length) return;
+    if (associatief && geldig.some((l) => !l.bron)) throw new Error('DXF: associatieve arcering zonder bronpolylijn');
     const vol = patroon.soort === 'vol';
-    const g = [...this.kop('HATCH', laag, 'AcDbHatch'),
+    const g = [...this.kop('HATCH', laag, 'AcDbHatch', associatief?.handle),
       '10', '0.0', '20', '0.0', '30', '0.0', '210', '0.0', '220', '0.0', '230', '1.0',
-      '2', vol ? 'SOLID' : 'ANSI31', '70', vol ? '1' : '0', '71', '0', '91', String(geldig.length)];
-    for (const lus of geldig) {
-      // 92 = 2: polyline boundary; 72 0 = no bulges; 73 1 = closed; 97 0 = no source objects.
-      g.push('92', '2', '72', '0', '73', '1', '93', String(lus.length));
-      for (const p of lus) { this.omvat(p); g.push('10', getal(p.x), '20', getal(p.y)); }
-      g.push('97', '0');
+      '2', vol ? 'SOLID' : 'ANSI31', '70', vol ? '1' : '0', '71', associatief ? '1' : '0', '91', String(geldig.length)];
+    for (const { punten, bron } of geldig) {
+      // 92: 2 = polyline boundary, +1 = external (from a source object); 72 0 = no bulges; 73 1 = closed.
+      g.push('92', bron ? '3' : '2', '72', '0', '73', '1', '93', String(punten.length));
+      for (const p of punten) { this.omvat(p); g.push('10', getal(p.x), '20', getal(p.y)); }
+      // 97: number of source boundary objects, each followed by its 330 handle.
+      g.push('97', bron ? '1' : '0', ...(bron ? ['330', bron] : []));
     }
     g.push('75', '0', '76', '1');
     if (!vol) {

@@ -43,7 +43,8 @@ export interface DxfOpties {
   streeppatroon?: { streep: number; gat: number };
   /**
    * Hatch the cut faces: per element one HATCH over its closed cut outlines
-   * on layer ARCERING_<class>. `ansi31` scale is in model mm per pattern
+   * on layer ARCERING_<class>, associative to those outline polylines (the
+   * hatch follows when a boundary is edited in AutoCAD/BricsCAD). `ansi31` scale is in model mm per pattern
    * unit (default 20: lines 63.5 mm apart). Default: no hatching.
    */
   arcering?: { soort: 'ansi31'; schaal?: number } | { soort: 'vol' };
@@ -88,27 +89,33 @@ export function schrijfDxf(lijnen: Lijn[], opties: DxfOpties = {}): string {
   const dxf = new DxfR2000(eenheid, { streep: patroon.streep * f, gat: patroon.gat * f });
   const gekozen = lijnen.filter((l) => l.soort !== 'verborgen' || opties.verborgenLijnen);
   // Chaining tolerances are in mm, so scale only when writing.
-  for (const p of maakPolylijnen(gekozen)) {
+  const polylijnen = maakPolylijnen(gekozen).map((p) => ({ ...p, punten: p.punten.map(schaal) }));
+  // Hatching: per element one associative HATCH whose loops are its closed
+  // cut polylines (at least 3 vertices); those polylines point back to it.
+  const perElement = new Map<number, { klasse: string; handle: string; lussen: Punt[][]; bronnen: string[] }>();
+  if (opties.arcering) {
+    for (const p of polylijnen) {
+      if (p.soort !== 'snede' || !p.gesloten || p.punten.length < 3 || perElement.has(p.entityId)) continue;
+      perElement.set(p.entityId, { klasse: klasseNaam(p.ifcType), handle: dxf.reserveer(), lussen: [], bronnen: [] });
+    }
+  }
+  for (const p of polylijnen) {
     const klasse = klasseNaam(p.ifcType);
     const stijl = STANDAARD_LAAGSTIJL[p.soort];
     const laag = dxf.laag(`${stijl.voorvoegsel}_${klasse}`, kleur(klasse), stijl.lijndikte, stijl.lijntype);
-    const punten = p.punten.map(schaal);
-    if (punten.length === 2 && !p.gesloten) dxf.lijn(punten[0], punten[1], laag);
-    else dxf.polylijn(punten, p.gesloten, laag);
+    const e = p.soort === 'snede' && p.gesloten && p.punten.length >= 3 ? perElement.get(p.entityId) : undefined;
+    if (p.punten.length === 2 && !p.gesloten) dxf.lijn(p.punten[0], p.punten[1], laag);
+    else {
+      const handle = dxf.polylijn(p.punten, p.gesloten, laag, undefined, e?.handle);
+      if (e && handle) { e.lussen.push(p.punten); e.bronnen.push(handle); }
+    }
   }
   if (opties.arcering) {
-    const perElement = new Map<number, { klasse: string; lussen: Punt[][] }>();
-    for (const p of maakPolylijnen(lijnen.filter((l) => l.soort === 'snede'))) {
-      if (!p.gesloten) continue;
-      const e = perElement.get(p.entityId) ?? { klasse: klasseNaam(p.ifcType), lussen: [] };
-      e.lussen.push(p.punten.map(schaal));
-      perElement.set(p.entityId, e);
-    }
     const patroon = opties.arcering.soort === 'vol'
       ? { soort: 'vol' as const }
       : { soort: 'ansi31' as const, schaal: (opties.arcering.schaal ?? 20) * f };
-    for (const { klasse, lussen } of perElement.values()) {
-      dxf.arcering(lussen, dxf.laag(`ARCERING_${klasse}`, kleur(klasse), 9), patroon);
+    for (const { klasse, handle, lussen, bronnen } of perElement.values()) {
+      dxf.arcering(lussen, dxf.laag(`ARCERING_${klasse}`, kleur(klasse), 9), patroon, { handle, bronnen });
     }
   }
   for (const a of opties.annotaties ?? []) {
