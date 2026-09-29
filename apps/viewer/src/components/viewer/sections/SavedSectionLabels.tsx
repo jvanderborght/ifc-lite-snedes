@@ -10,13 +10,15 @@
  * does not fit there without a renderer change.
  */
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type MouseEvent } from 'react';
 import { getGlobalRenderer } from '@/hooks/useBCF';
 import { visibleCoordinateInfo } from '@/lib/export/view-pdf/view-pdf-export-source';
 import { sectionLabelAnchors } from '@/lib/sections/section-lines3d';
 import { useViewerStore } from '@/store';
+import { activateSavedSection } from './useActiveSavedSection';
 
 const LABEL_COLOUR = '#0b72d9';
+const ACTIVE_LABEL_COLOUR = '#e0590b';
 
 function escapeXml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -25,6 +27,7 @@ function escapeXml(s: string): string {
 export function SavedSectionLabels() {
   const sections = useViewerStore((s) => s.savedSections);
   const models = useViewerStore((s) => s.models);
+  const activeId = useViewerStore((s) => s.activeSavedSectionId);
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const anchors = useMemo(() => {
@@ -51,7 +54,9 @@ export function SavedSectionLabels() {
         for (const a of anchors) {
           const screen = camera.projectToScreen(a.point, w, h);
           if (!screen) continue;
-          parts.push(`<text x="${Math.round(screen.x) + 6}" y="${Math.round(screen.y) - 6}" font-family="ui-sans-serif, system-ui" font-size="13" font-weight="600" fill="${LABEL_COLOUR}" stroke="white" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${escapeXml(a.name)}</text>`);
+          const fill = a.id === activeId ? ACTIVE_LABEL_COLOUR : LABEL_COLOUR;
+          // Only the names take clicks; the rest of the layer lets the canvas have them.
+          parts.push(`<text data-section-id="${escapeXml(a.id)}" pointer-events="auto" style="cursor:pointer" x="${Math.round(screen.x) + 6}" y="${Math.round(screen.y) - 6}" font-family="ui-sans-serif, system-ui" font-size="13" font-weight="600" fill="${fill}" stroke="white" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${escapeXml(a.name)}</text>`);
         }
         svg.innerHTML = parts.join('');
       }
@@ -59,11 +64,20 @@ export function SavedSectionLabels() {
     };
     raf = requestAnimationFrame(paint);
     return () => cancelAnimationFrame(raf);
-  }, [anchors]);
+  }, [anchors, activeId]);
+
+  // Clicking a name makes that section the active one and opens the Sections panel on it.
+  const onClick = (e: MouseEvent<SVGSVGElement>) => {
+    const id = (e.target as Element).closest('[data-section-id]')?.getAttribute('data-section-id');
+    if (!id) return;
+    e.stopPropagation();
+    useViewerStore.getState().openWorkspacePanel('sections');
+    activateSavedSection(id);
+  };
 
   return (
     <div ref={containerRef} className="absolute inset-0 pointer-events-none z-30">
-      <svg ref={svgRef} className="absolute inset-0 h-full w-full" />
+      <svg ref={svgRef} className="absolute inset-0 h-full w-full" onClick={onClick} />
     </div>
   );
 }

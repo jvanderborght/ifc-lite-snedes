@@ -33,6 +33,10 @@ export const sectionsPanelEn = {
   'sectionsPanel.moveDown': 'Move down',
   'sectionsPanel.remove': 'Remove section',
   'sectionsPanel.position': 'Point {x}, {y}, {z} mm',
+  'sectionsPanel.moveSection': 'Move this section: shows it as the cut on screen; drag the handle or use the slider',
+  'sectionsPanel.stopMoving': 'Stop moving this section',
+  'sectionsPanel.positionMm': 'Position (mm)',
+  'sectionsPanel.positionSlider': 'Section position across the model',
 
   'sectionsExport.title': 'Export sections to DXF',
   'sectionsExport.description': 'Sections side by side, plans below or on world coordinates, one DXF file.',

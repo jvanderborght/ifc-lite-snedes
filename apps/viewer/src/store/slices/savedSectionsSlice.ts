@@ -17,6 +17,12 @@ export interface SavedSectionsSlice {
   savedSections: SavedSection[];
   /** Identity of the model the list belongs to; null until one is loaded. */
   savedSectionsModelKey: string | null;
+  /**
+   * The saved section being moved: it is the Section tool's cut on screen,
+   * and moving that cut moves the section (`useActiveSavedSection`).
+   */
+  activeSavedSectionId: string | null;
+  setActiveSavedSection: (id: string | null) => void;
   addSavedSection: (section: SavedSection) => void;
   updateSavedSection: (id: string, patch: Partial<Omit<SavedSection, 'id'>>) => void;
   removeSavedSection: (id: string) => void;
@@ -28,6 +34,9 @@ export interface SavedSectionsSlice {
 export const createSavedSectionsSlice: StateCreator<SavedSectionsSlice, [], [], SavedSectionsSlice> = (set) => ({
   savedSections: [],
   savedSectionsModelKey: null,
+  activeSavedSectionId: null,
+
+  setActiveSavedSection: (id) => set({ activeSavedSectionId: id }),
 
   addSavedSection: (section) => set((s) => ({ savedSections: [...s.savedSections, section] })),
 
@@ -35,7 +44,10 @@ export const createSavedSectionsSlice: StateCreator<SavedSectionsSlice, [], [], 
     savedSections: s.savedSections.map((sec) => (sec.id === id ? { ...sec, ...patch } : sec)),
   })),
 
-  removeSavedSection: (id) => set((s) => ({ savedSections: s.savedSections.filter((sec) => sec.id !== id) })),
+  removeSavedSection: (id) => set((s) => ({
+    savedSections: s.savedSections.filter((sec) => sec.id !== id),
+    activeSavedSectionId: s.activeSavedSectionId === id ? null : s.activeSavedSectionId,
+  })),
 
   moveSavedSection: (id, delta) => set((s) => {
     const i = s.savedSections.findIndex((sec) => sec.id === id);
@@ -46,5 +58,5 @@ export const createSavedSectionsSlice: StateCreator<SavedSectionsSlice, [], [], 
     return { savedSections: next };
   }),
 
-  replaceSavedSections: (sections, modelKey) => set({ savedSections: sections, savedSectionsModelKey: modelKey }),
+  replaceSavedSections: (sections, modelKey) => set({ savedSections: sections, savedSectionsModelKey: modelKey, activeSavedSectionId: null }),
 });

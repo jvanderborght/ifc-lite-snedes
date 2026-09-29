@@ -16,6 +16,7 @@ import { visibleCoordinateInfo } from '@/lib/export/view-pdf/view-pdf-export-sou
 import { anchorWorldLineVertices } from '@/lib/renderer/line-overlay-rte';
 import { sectionLines3D } from '@/lib/sections/section-lines3d';
 import { useViewerStore } from '@/store';
+import { useActiveSavedSection } from './useActiveSavedSection';
 import { useSavedSectionsPersistence } from './useSavedSectionsPersistence';
 
 /** How long to keep retrying while the renderer is still starting up. */
@@ -23,6 +24,7 @@ const RENDERER_WAIT_MS = 10_000;
 
 export function SavedSectionsHost() {
   useSavedSectionsPersistence();
+  useActiveSavedSection();
   const sections = useViewerStore((s) => s.savedSections);
   const models = useViewerStore((s) => s.models);
 

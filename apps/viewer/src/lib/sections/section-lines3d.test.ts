@@ -62,6 +62,7 @@ describe('sectionLabelAnchors', () => {
     };
     const [a] = sectionLabelAnchors([vertical], undefined, box);
     assert.equal(a.name, 'B');
+    assert.equal(a.id, 'b');
     assert.equal(a.point.y, 3);
     assert.equal(a.point.x, 5);
   });

@@ -15,10 +15,10 @@ import { defineSliceTeardown, notApplicable } from '../teardown.js';
 
 export const savedSectionsTeardown = defineSliceTeardown(
   'savedSectionsSlice',
-  ['savedSections', 'savedSectionsModelKey'],
+  ['savedSections', 'savedSectionsModelKey', 'activeSavedSectionId'],
   {
-    'session-reset': () => ({ savedSections: [], savedSectionsModelKey: null }),
+    'session-reset': () => ({ savedSections: [], savedSectionsModelKey: null, activeSavedSectionId: null }),
     'model-removed': notApplicable,
-    'all-models-cleared': () => ({ savedSections: [], savedSectionsModelKey: null }),
+    'all-models-cleared': () => ({ savedSections: [], savedSectionsModelKey: null, activeSavedSectionId: null }),
   },
 );

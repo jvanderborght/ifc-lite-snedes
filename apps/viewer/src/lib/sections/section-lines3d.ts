@@ -56,16 +56,16 @@ export function sectionLabelAnchors(
   sections: readonly SavedSection[],
   info: CoordinateInfo | undefined,
   box: { min: V3; max: V3 } | undefined,
-): { name: string; point: V3 }[] {
+): { id: string; name: string; point: V3 }[] {
   if (!box) return [];
-  const out: { name: string; point: V3 }[] = [];
+  const out: { id: string; name: string; point: V3 }[] = [];
   for (const s of sections) {
     if (!s.shown || Math.hypot(s.direction.x, s.direction.y, s.direction.z) === 0) continue;
     const p = naarRenderPunt({ x: s.origin.x / 1000, y: s.origin.y / 1000, z: s.origin.z / 1000 }, info);
     const poly = planeBoxPolygon(p, unit(naarRenderRichting(s.direction)), box);
     if (!poly.length) continue;
     const top = poly.reduce((best, q) => (q.y > best.y + 1e-9 || (Math.abs(q.y - best.y) <= 1e-9 && q.x > best.x) ? q : best));
-    out.push({ name: s.name, point: top });
+    out.push({ id: s.id, name: s.name, point: top });
   }
   return out;
 }
