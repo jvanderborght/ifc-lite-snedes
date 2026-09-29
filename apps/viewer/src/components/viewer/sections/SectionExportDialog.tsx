@@ -103,7 +103,7 @@ export function SectionExportDialog({ open, onOpenChange }: SectionExportDialogP
         annotatie: { teksthoogte: s.textHeight, driehoek: s.triangleSize },
         dxf: {
           eenheid: s.unit, verborgenLijnen: s.hiddenLines, streeppatroon: { streep: s.dash, gat: s.dashGap },
-          kleuren: { ...STANDAARD_KLEUREN, ...s.classColours },
+          kleuren: { ...STANDAARD_KLEUREN, ...s.classColours }, zwartWit: s.blackAndWhite,
           arcering: s.hatch === 'none' ? undefined
             : s.hatch === 'solid' ? { soort: 'vol' } : { soort: 'ansi31', schaal: s.hatchScale },
         },
@@ -209,7 +209,13 @@ export function SectionExportDialog({ open, onOpenChange }: SectionExportDialogP
                 <p className="text-xs text-muted-foreground">{t('sectionsExport.partsAsModelledHint')}</p>
               </div>
             </div>
-            <SectionColourTable colours={settings.classColours} onChange={(c) => set('classColours', c)} />
+            <div className="flex items-center gap-4">
+              <Label className="w-48" htmlFor="sections-black-and-white">{t('sectionsExport.blackAndWhite')}</Label>
+              <Switch id="sections-black-and-white" checked={settings.blackAndWhite} onCheckedChange={(v) => set('blackAndWhite', v)} />
+            </div>
+            {!settings.blackAndWhite && (
+              <SectionColourTable colours={settings.classColours} onChange={(c) => set('classColours', c)} />
+            )}
           </div>
         )}
 

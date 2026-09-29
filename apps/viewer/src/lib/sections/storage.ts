@@ -96,6 +96,8 @@ export interface SectionExportSettings {
   hatch: HatchKind;
   /** ANSI31 scale in model mm per pattern unit (20: lines 63.5 mm apart). */
   hatchScale: number;
+  /** Every layer black/white (ACI 7) instead of the class colours. */
+  blackAndWhite: boolean;
 }
 
 export const DEFAULT_SECTION_EXPORT_SETTINGS: Readonly<SectionExportSettings> = {
@@ -105,6 +107,7 @@ export const DEFAULT_SECTION_EXPORT_SETTINGS: Readonly<SectionExportSettings> = 
   partsAsModelled: true,
   hatch: 'none',
   hatchScale: 20,
+  blackAndWhite: false,
 };
 
 const positive = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : fallback);
@@ -138,6 +141,7 @@ export function normalizeSettings(raw: unknown): SectionExportSettings {
     partsAsModelled: typeof r.partsAsModelled === 'boolean' ? r.partsAsModelled : d.partsAsModelled,
     hatch: r.hatch === 'ansi31' || r.hatch === 'solid' || r.hatch === 'none' ? r.hatch : d.hatch,
     hatchScale: positive(r.hatchScale, d.hatchScale),
+    blackAndWhite: typeof r.blackAndWhite === 'boolean' ? r.blackAndWhite : d.blackAndWhite,
   };
 }
 

@@ -57,6 +57,7 @@ export const sectionsPanelEn = {
   'sectionsExport.hatchSolid': 'Solid fill',
   'sectionsExport.hatchScale': 'Hatch scale (mm per unit)',
   'sectionsExport.partsAsModelled': 'Draw wall parts as modelled',
+  'sectionsExport.blackAndWhite': 'Black and white (no class colours)',
   'sectionsExport.partsAsModelledHint': 'For timber-frame models (hsbCAD): studs, plates and sheets are already cut to their openings, so the openings of their wall are not cut through them again.',
   'sectionsExport.colours': 'Layer colours per class',
   'sectionsExport.coloursChanged': '{count} changed',

@@ -8,7 +8,7 @@
  *
  *   node scripts/blad.mjs <model.ifc> <out.dxf> "A:x=22600" "B:y=15400" "P:z=1000"
  *        [--diepte 0] [--plannen rij|wereld] [--eenheid mm|cm|m] [--tussenruimte 10000]
- *        [--tekst 500] [--driehoek 500] [--verborgen] [--wel-verborgen-in-snede] [--diagnose] [--geen-herstel] [--arcering ansi31|vol]
+ *        [--tekst 500] [--driehoek 500] [--verborgen] [--wel-verborgen-in-snede] [--diagnose] [--geen-herstel] [--arcering ansi31|vol] [--zwartwit]
  */
 
 import { readFile, writeFile } from 'node:fs/promises';
@@ -32,6 +32,8 @@ const verborgenBinnenSnede = args.includes('--wel-verborgen-in-snede');
 if (verborgenBinnenSnede) args.splice(args.indexOf('--wel-verborgen-in-snede'), 1);
 const metHerstel = !args.includes('--geen-herstel');
 if (!metHerstel) args.splice(args.indexOf('--geen-herstel'), 1);
+const zwartWit = args.includes('--zwartwit');
+if (zwartWit) args.splice(args.indexOf('--zwartwit'), 1);
 const metDiagnose = args.includes('--diagnose');
 if (metDiagnose) args.splice(args.indexOf('--diagnose'), 1);
 const tussenruimte = Number(optie('tussenruimte', 10000));
@@ -58,7 +60,7 @@ const { dxf, verslag } = await exporteer(resultaat.meshes, resultaat.coordinateI
   vlakken.map((tekst) => vlakUitTekst(tekst, diepte)), {
     blad: { plannen, tussenruimte },
     annotatie: { teksthoogte, driehoek },
-    dxf: { eenheid, verborgenLijnen, arcering: arceringSoort ? { soort: arceringSoort } : undefined },
+    dxf: { eenheid, verborgenLijnen, arcering: arceringSoort ? { soort: arceringSoort } : undefined, zwartWit },
     zicht: { verborgenBinnenSnede },
     diagnose,
     herstel: store ? [{ store, idOffset: 0 }] : [],

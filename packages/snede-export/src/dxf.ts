@@ -47,6 +47,8 @@ export interface DxfOpties {
    * unit (default 20: lines 63.5 mm apart). Default: no hatching.
    */
   arcering?: { soort: 'ansi31'; schaal?: number } | { soort: 'vol' };
+  /** Black and white: every layer gets ACI 7 (black on white, white on black). Default false. */
+  zwartWit?: boolean;
 }
 
 export const STANDAARD_STREEPPATROON = { streep: 50, gat: 25 } as const;
@@ -77,7 +79,8 @@ export function klasseNaam(ifcType: string): string {
 
 /** Write lines (already in drawing millimetres) to a DXF string. */
 export function schrijfDxf(lijnen: Lijn[], opties: DxfOpties = {}): string {
-  const kleuren = opties.kleuren ?? STANDAARD_KLEUREN;
+  const tabel = opties.kleuren ?? STANDAARD_KLEUREN;
+  const kleur = (klasse: string): number => (opties.zwartWit ? 7 : tabel[klasse] ?? 7);
   const eenheid = opties.eenheid ?? 'mm';
   const f = 1 / MM_PER[eenheid];
   const schaal = (p: Punt): Punt => ({ x: p.x * f, y: p.y * f });
@@ -88,7 +91,7 @@ export function schrijfDxf(lijnen: Lijn[], opties: DxfOpties = {}): string {
   for (const p of maakPolylijnen(gekozen)) {
     const klasse = klasseNaam(p.ifcType);
     const stijl = STANDAARD_LAAGSTIJL[p.soort];
-    const laag = dxf.laag(`${stijl.voorvoegsel}_${klasse}`, kleuren[klasse] ?? 7, stijl.lijndikte, stijl.lijntype);
+    const laag = dxf.laag(`${stijl.voorvoegsel}_${klasse}`, kleur(klasse), stijl.lijndikte, stijl.lijntype);
     const punten = p.punten.map(schaal);
     if (punten.length === 2 && !p.gesloten) dxf.lijn(punten[0], punten[1], laag);
     else dxf.polylijn(punten, p.gesloten, laag);
@@ -105,12 +108,12 @@ export function schrijfDxf(lijnen: Lijn[], opties: DxfOpties = {}): string {
       ? { soort: 'vol' as const }
       : { soort: 'ansi31' as const, schaal: (opties.arcering.schaal ?? 20) * f };
     for (const { klasse, lussen } of perElement.values()) {
-      dxf.arcering(lussen, dxf.laag(`ARCERING_${klasse}`, kleuren[klasse] ?? 7, 9), patroon);
+      dxf.arcering(lussen, dxf.laag(`ARCERING_${klasse}`, kleur(klasse), 9), patroon);
     }
   }
   for (const a of opties.annotaties ?? []) {
     const stijl = ANNOTATIELAGEN[a.laag];
-    const laag = dxf.laag(stijl.naam, stijl.aci, stijl.lijndikte);
+    const laag = dxf.laag(stijl.naam, opties.zwartWit ? 7 : stijl.aci, stijl.lijndikte);
     if (a.soort === 'lijn') dxf.lijn(schaal(a.a), schaal(a.b), laag);
     else if (a.soort === 'veelhoek') dxf.polylijn(a.punten.map(schaal), true, laag);
     else dxf.tekst(schaal(a.p), a.hoogte * f, a.waarde, laag, { horizontaal: 1, verticaal: 2 });

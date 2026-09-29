@@ -34,6 +34,9 @@ describe('normalizeSettings', () => {
     assert.equal(d.hiddenInsideCut, false);
     assert.equal(d.hatch, 'none');
     assert.equal(d.partsAsModelled, true);
+    assert.equal(d.blackAndWhite, false);
+    assert.equal(normalizeSettings({ blackAndWhite: 'yes' }).blackAndWhite, false);
+    assert.equal(normalizeSettings({ blackAndWhite: true }).blackAndWhite, true);
     assert.equal(normalizeSettings({ hatch: 'cross' }).hatch, 'none');
   });
 });

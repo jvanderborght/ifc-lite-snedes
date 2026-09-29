@@ -66,6 +66,24 @@ describe('schrijfDxf', () => {
     expect(vol).toContain('\nSOLID\n');
   });
 
+  it('writes every layer in ACI 7 in black and white', () => {
+    /** ACI colour (group 62) of the LAYER record with this name. */
+    const laagkleur = (dxf: string, naam: string): string => {
+      const r = dxf.split('\n').map((s) => s.trim());
+      const i = r.findIndex((v, j) => v === naam && r[j - 1] === '2');
+      return r[r.indexOf('62', i) + 1];
+    };
+    const opties = {
+      arcering: { soort: 'ansi31' as const },
+      annotaties: [{ soort: 'tekst' as const, laag: 'titel' as const, p: { x: 0, y: 0 }, hoogte: 250, waarde: 'A-A' }],
+    };
+    const kleur = schrijfDxf(vierkant, opties);
+    expect(laagkleur(kleur, 'SNEDE_IfcWall')).toBe('1');
+    expect(laagkleur(kleur, 'ARCERING_IfcWall')).toBe('1');
+    const zw = schrijfDxf(vierkant, { ...opties, zwartWit: true, kleuren: { IfcWall: 3 } });
+    for (const laag of ['SNEDE_IfcWall', 'ARCERING_IfcWall', 'SNEDETITEL']) expect(laagkleur(zw, laag)).toBe('7');
+  });
+
   it('escapes non-ASCII text for the ANSI_1252 code page', () => {
     const dxf = schrijfDxf([], {
       annotaties: [{ soort: 'tekst', laag: 'titel', p: { x: 0, y: 0 }, hoogte: 250, waarde: 'Gevel é' }],
