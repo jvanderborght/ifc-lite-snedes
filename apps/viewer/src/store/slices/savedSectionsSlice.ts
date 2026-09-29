@@ -27,6 +27,8 @@ export interface SavedSectionsSlice {
   updateSavedSection: (id: string, patch: Partial<Omit<SavedSection, 'id'>>) => void;
   removeSavedSection: (id: string) => void;
   moveSavedSection: (id: string, delta: -1 | 1) => void;
+  /** Move a section to `toIndex` in the list (drag and drop); the list order is the sheet order. */
+  moveSavedSectionTo: (id: string, toIndex: number) => void;
   /** Replace the whole list, e.g. after loading a file or switching model. */
   replaceSavedSections: (sections: SavedSection[], modelKey: string | null) => void;
 }
@@ -55,6 +57,16 @@ export const createSavedSectionsSlice: StateCreator<SavedSectionsSlice, [], [], 
     if (i < 0 || j < 0 || j >= s.savedSections.length) return {};
     const next = [...s.savedSections];
     [next[i], next[j]] = [next[j], next[i]];
+    return { savedSections: next };
+  }),
+
+  moveSavedSectionTo: (id, toIndex) => set((s) => {
+    const i = s.savedSections.findIndex((sec) => sec.id === id);
+    const j = Math.max(0, Math.min(s.savedSections.length - 1, toIndex));
+    if (i < 0 || i === j) return {};
+    const next = [...s.savedSections];
+    const [moved] = next.splice(i, 1);
+    next.splice(j, 0, moved);
     return { savedSections: next };
   }),
 

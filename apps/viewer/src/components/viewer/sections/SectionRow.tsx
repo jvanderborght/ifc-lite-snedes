@@ -4,7 +4,7 @@
 
 /** One saved section in the Sections panel: name, depth and its toggles. */
 
-import { ArrowDown, ArrowUp, ArrowLeftRight, Eye, EyeOff, Move, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, Eye, EyeOff, GripVertical, Move, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,11 +16,20 @@ import { activateSavedSection } from './useActiveSavedSection';
 
 export interface SectionRowProps {
   section: SavedSection;
-  first: boolean;
-  last: boolean;
+  index: number;
+  /** Drag and drop reordering, driven by the panel. */
+  drag: {
+    dragging: boolean;
+    /** Where the dragged row would land relative to this one, when it is the drop target. */
+    dropEdge: 'top' | 'bottom' | null;
+    onStart: (index: number) => void;
+    onOver: (index: number) => void;
+    onEnd: () => void;
+    onDrop: (index: number) => void;
+  };
 }
 
-export function SectionRow({ section, first, last }: SectionRowProps) {
+export function SectionRow({ section, index, drag }: SectionRowProps) {
   const { t } = useTranslation();
   const update = useViewerStore((s) => s.updateSavedSection);
   const remove = useViewerStore((s) => s.removeSavedSection);
@@ -39,8 +48,39 @@ export function SectionRow({ section, first, last }: SectionRowProps) {
   };
 
   return (
-    <li className={`space-y-1.5 border-b px-3 py-2 ${active ? 'bg-sky-500/10' : ''}`} data-section-id={section.id}>
+    <li
+      className={[
+        // Both edges reserve 2px so the drop line does not reflow the list.
+        'space-y-1.5 border-y-2 border-transparent py-2 pl-1 pr-3 shadow-[inset_0_-1px_0_hsl(var(--border))] transition-[border-color,opacity]',
+        active ? 'bg-sky-500/10' : '',
+        drag.dropEdge === 'top' ? 'border-t-primary' : drag.dropEdge === 'bottom' ? 'border-b-primary' : '',
+        drag.dragging ? 'opacity-40' : '',
+      ].join(' ')}
+      data-section-id={section.id}
+      onDragOver={(e) => { e.preventDefault(); drag.onOver(index); }}
+      onDrop={(e) => { e.preventDefault(); drag.onDrop(index); }}
+    >
       <div className="flex min-w-0 items-center gap-1">
+        <span
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', section.id);
+            drag.onStart(index);
+          }}
+          onDragEnd={drag.onEnd}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowUp') { e.preventDefault(); move(section.id, -1); }
+            else if (e.key === 'ArrowDown') { e.preventDefault(); move(section.id, 1); }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label={t('sectionsPanel.reorder')}
+          title={t('sectionsPanel.reorder')}
+          className="flex-shrink-0 cursor-grab rounded-sm text-muted-foreground/60 hover:text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-primary active:cursor-grabbing"
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </span>
         <input
           type="checkbox"
           className="h-3.5 w-3.5"
@@ -62,14 +102,6 @@ export function SectionRow({ section, first, last }: SectionRowProps) {
           onClick={() => (active ? setActive(null) : activateSavedSection(section.id))}
           title={active ? t('sectionsPanel.stopMoving') : t('sectionsPanel.moveSection')}>
           <Move className="h-3.5 w-3.5" />
-        </Button>
-        <Button variant="ghost" size="icon" className="h-6 w-6" disabled={first}
-          onClick={() => move(section.id, -1)} title={t('sectionsPanel.moveUp')}>
-          <ArrowUp className="h-3.5 w-3.5" />
-        </Button>
-        <Button variant="ghost" size="icon" className="h-6 w-6" disabled={last}
-          onClick={() => move(section.id, 1)} title={t('sectionsPanel.moveDown')}>
-          <ArrowDown className="h-3.5 w-3.5" />
         </Button>
         <Button variant="ghost" size="icon" className="h-6 w-6"
           onClick={() => remove(section.id)} title={t('sectionsPanel.remove')}>

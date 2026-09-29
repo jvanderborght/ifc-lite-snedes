@@ -35,6 +35,14 @@ export function SectionsPanel({ onClose }: SectionsPanelProps) {
   const addSavedSection = useViewerStore((s) => s.addSavedSection);
   const replaceSavedSections = useViewerStore((s) => s.replaceSavedSections);
   const [exportOpen, setExportOpen] = useState(false);
+  const moveTo = useViewerStore((s) => s.moveSavedSectionTo);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
+  const endDrag = () => { setDragIndex(null); setOverIndex(null); };
+  const drop = (to: number) => {
+    if (dragIndex !== null) moveTo(sections[dragIndex].id, to);
+    endDrag();
+  };
   const fileInput = useRef<HTMLInputElement>(null);
 
   const addCurrent = () => {
@@ -123,7 +131,20 @@ export function SectionsPanel({ onClose }: SectionsPanelProps) {
           ) : (
             <ul className="flex-1 overflow-y-auto">
               {sections.map((section, i) => (
-                <SectionRow key={section.id} section={section} first={i === 0} last={i === sections.length - 1} />
+                <SectionRow
+                  key={section.id}
+                  section={section}
+                  index={i}
+                  drag={{
+                    dragging: dragIndex === i,
+                    // The line sits on the edge the row will land on: below when dragging down, above when up.
+                    dropEdge: dragIndex === null || overIndex !== i || dragIndex === i ? null : dragIndex < i ? 'bottom' : 'top',
+                    onStart: setDragIndex,
+                    onOver: setOverIndex,
+                    onEnd: endDrag,
+                    onDrop: drop,
+                  }}
+                />
               ))}
             </ul>
           )}
