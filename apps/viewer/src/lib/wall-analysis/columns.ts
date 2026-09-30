@@ -47,6 +47,8 @@ export interface WallAnalysisRow {
   timber: WallResult | null;
   /** The variants are still being computed (a second pass after the main figures). */
   variantsPending?: boolean;
+  /** No zone because the model's zoned parts hang under no wall (see `ModelPlan.partsNotInWalls`). */
+  partsNotInWall?: boolean;
 }
 
 type Value = number | string | null | typeof ND;

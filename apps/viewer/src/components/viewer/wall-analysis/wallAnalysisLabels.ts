@@ -17,7 +17,7 @@ type T = (key: TranslationKey, params?: TranslationParameters) => string;
 
 export function rowNotes(t: T, r: WallAnalysisRow): string {
   const notes: string[] = [];
-  if (r.npr.status === 'noZones') notes.push(t('wallAnalysis.note.noZones'));
+  if (r.npr.status === 'noZones') notes.push(r.partsNotInWall ? t('wallAnalysis.note.partsNotInWall') : t('wallAnalysis.note.noZones'));
   if (r.npr.status === 'noFrame') notes.push(t('wallAnalysis.note.noFrame'));
   if (r.npr.status === 'noGeometry') notes.push(t('wallAnalysis.note.noGeometry'));
   if (r.npr.status === 'ok' && r.npr.source === 'mesh') notes.push(t('wallAnalysis.note.meshSource'));

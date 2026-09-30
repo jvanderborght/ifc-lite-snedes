@@ -16,6 +16,8 @@ import { authoredVolume, computeNpr, computeWall, type WallResult } from '@ifc-l
 import { authoredFaces, collectWalls, computeWallArea, type EntityReader, type FaceSet, type MeshPiece, type WallAreaStore, type WallParts } from '@ifc-lite/wand-oppervlak';
 import type { WallAnalysisRow } from './columns';
 import { isExternalOf, wallKind } from './kind';
+import { zoneOf } from '@/lib/hsb-zones/zones';
+import { RelationshipType } from '@ifc-lite/data';
 
 export type AnalysisStore = WallAreaStore & EntityReader;
 export type MeshLookup = (expressId: number) => readonly MeshPiece[];
@@ -24,11 +26,32 @@ export interface ModelPlan {
   walls: WallParts[];
   /** Any wall part carries a zone: without, no timber figure can be determined for this model. */
   hasZones: boolean;
+  /**
+   * No wall has zoned parts, yet the model has zoned timber-frame parts that
+   * hang under no element at all: the export did not aggregate the parts
+   * under their walls (seen in hsbCAD exports), so the zones exist but cannot
+   * be tied to a wall.
+   */
+  partsNotInWalls: boolean;
+}
+
+const PART_TYPES = ['IFCBEAM', 'IFCPLATE', 'IFCBUILDINGELEMENTPART', 'IFCMEMBER'];
+
+/** A zoned part (pset Data, property Zone) that no element aggregates. */
+function hasLooseZonedPart(store: AnalysisStore): boolean {
+  for (const type of PART_TYPES) {
+    for (const id of store.entityIndex.byType.get(type) ?? []) {
+      if (store.relationships.getRelated(id, RelationshipType.Aggregates, 'inverse').length > 0) continue;
+      if (zoneOf(store.getProperties(id)) !== null) return true;
+    }
+  }
+  return false;
 }
 
 export function planModel(store: AnalysisStore): ModelPlan {
   const walls = collectWalls(store);
-  return { walls, hasZones: walls.some((w) => w.zones.size > 0) };
+  const hasZones = walls.some((w) => w.zones.size > 0);
+  return { walls, hasZones, partsNotInWalls: !hasZones && walls.length > 0 && hasLooseZonedPart(store) };
 }
 
 const FRAME_ZONE = '0';

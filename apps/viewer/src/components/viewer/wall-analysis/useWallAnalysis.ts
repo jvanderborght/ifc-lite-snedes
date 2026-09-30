@@ -38,6 +38,8 @@ export interface ModelAnalysis {
   modelId: string;
   modelName: string;
   hasZones: boolean;
+  /** Zoned parts exist but hang under no wall (export without aggregation). */
+  partsNotInWalls: boolean;
   rows: WallAnalysisRow[];
 }
 
@@ -117,7 +119,7 @@ export function useWallAnalysis(): { models: ModelAnalysis[]; status: WallAnalys
     const openings = openingMeshes();
 
     const plans = stores.map((m) => ({ m, plan: planModel(m.store) }));
-    const fresh = new Map<IfcDataStore, ModelAnalysis>(plans.map(({ m, plan }) => [m.store, { modelId: m.id, modelName: m.name, hasZones: plan.hasZones, rows: [] }]));
+    const fresh = new Map<IfcDataStore, ModelAnalysis>(plans.map(({ m, plan }) => [m.store, { modelId: m.id, modelName: m.name, hasZones: plan.hasZones, partsNotInWalls: plan.partsNotInWalls, rows: [] }]));
     const jobs = plans.flatMap(({ m, plan }) => plan.walls.map((wall) => ({ m, wall })));
     setStatus({ kind: 'running', done: 0, total: jobs.length });
 
@@ -140,7 +142,8 @@ export function useWallAnalysis(): { models: ModelAnalysis[]; status: WallAnalys
             step = steps.next();
           }
           const entry = fresh.get(job.m.store);
-          if (entry) placed.push({ entry, index: entry.rows.push(step.value) - 1, job });
+          const row = entry?.partsNotInWalls && step.value.npr.status === 'noZones' ? { ...step.value, partsNotInWall: true } : step.value;
+          if (entry) placed.push({ entry, index: entry.rows.push(row) - 1, job });
           await nextMacrotask();
           if (abandoned()) return;
           setStatus({ kind: 'running', done: i + 1, total: jobs.length });

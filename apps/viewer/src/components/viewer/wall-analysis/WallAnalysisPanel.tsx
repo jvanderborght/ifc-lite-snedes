@@ -159,7 +159,7 @@ export function WallAnalysisPanel({ onClose }: WallAnalysisPanelProps) {
       </div>
       {withoutZones.map((m) => (
         <p key={m.modelId} className="border-b bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-          {t('wallAnalysis.modelWithoutZones', { model: m.modelName })}
+          {m.partsNotInWalls ? t('wallAnalysis.modelPartsNotInWalls', { model: m.modelName }) : t('wallAnalysis.modelWithoutZones', { model: m.modelName })}
         </p>
       ))}
       {allRows.length > 0 && <WallKindFilter counts={counts} filter={filter} onChange={setFilter} />}
