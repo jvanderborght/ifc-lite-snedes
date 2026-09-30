@@ -62,11 +62,14 @@ export interface WallMembers {
   openingIds: number[];
 }
 
+/** First non-empty value over every pset of that name (an element can carry "Data" twice, one with an empty Zone). */
 export function propertyText(store: WallStore, id: number, psetName: string, propertyName: string): string | null {
   for (const pset of store.getProperties(id)) {
     if (pset.name !== psetName) continue;
     for (const p of pset.properties) {
-      if (p.name === propertyName && p.value !== null && p.value !== undefined) return String(p.value);
+      if (p.name !== propertyName || p.value === null || p.value === undefined) continue;
+      const text = String(p.value);
+      if (text.trim() !== '') return text;
     }
   }
   return null;

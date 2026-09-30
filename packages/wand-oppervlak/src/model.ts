@@ -91,10 +91,20 @@ export interface WallParts {
   declared: DeclaredQuantities;
 }
 
+/**
+ * First non-empty value of the property over every property set of that
+ * name: an element can carry the same pset name twice (a Revit "Data" set
+ * with an empty Zone next to the hsbCAD one), and an empty value must not
+ * hide the filled one.
+ */
 function propertyValue(psets: Psets, psetName: string, propertyName: string): unknown {
   for (const pset of psets) {
     if (pset.name !== psetName) continue;
-    for (const p of pset.properties) if (p.name === propertyName && p.value !== null && p.value !== undefined) return p.value;
+    for (const p of pset.properties) {
+      if (p.name !== propertyName || p.value === null || p.value === undefined) continue;
+      if (typeof p.value === 'string' && p.value.trim() === '') continue;
+      return p.value;
+    }
   }
   return undefined;
 }

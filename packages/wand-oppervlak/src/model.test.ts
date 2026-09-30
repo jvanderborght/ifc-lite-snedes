@@ -27,6 +27,8 @@ function fakeStore(): WallAreaStore {
       },
     },
     getProperties: (id) => [
+      // The beam also carries a second, Revit-style "Data" set with an empty Zone, listed first.
+      ...(id === 11 ? [{ name: 'Data', properties: [{ name: 'Zone', value: '' }] }] : []),
       ...(zone[id] === undefined ? [] : [{ name: 'Data', properties: [{ name: 'Zone', value: zone[id] }] }]),
       ...(id === 1 ? [{ name: 'Dimensions', properties: [{ name: 'Length', value: 6730 }, { name: 'Base Height', value: 3195 }] }] : []),
     ],
@@ -39,7 +41,7 @@ function fakeStore(): WallAreaStore {
 }
 
 describe('collectWalls', () => {
-  it('collects nested parts, skips windows, reads zones, openings and declared quantities', () => {
+  it('collects nested parts, skips windows, reads zones (past an empty duplicate pset), openings and declared quantities', () => {
     const [w1, w2, w3] = collectWalls(fakeStore());
     expect(w1.partIds.sort((a, b) => a - b)).toEqual([1, 10, 11, 13, 14]);
     expect([...w1.zones]).toEqual([[10, '2'], [11, '0'], [14, '-2']]);
