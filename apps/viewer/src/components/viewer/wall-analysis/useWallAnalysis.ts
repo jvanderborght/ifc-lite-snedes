@@ -12,9 +12,12 @@
  * those). Walls, parts and zones come from each model's own `IfcDataStore`;
  * the authored B-reps are read from it too.
  *
- * The work is sliced per wall with a macrotask yield between walls, so the
- * UI stays responsive and the progress line moves. A newer run, or the panel
- * unmounting, abandons the running one.
+ * The work is sliced per step of a wall (area, then NPR; a large timber-frame
+ * wall takes up to a second per step) with a macrotask yield in between, so
+ * the viewer stays usable and the progress line moves. The table is shown as
+ * soon as the main figures are in; the comparison variants ("more columns")
+ * follow in a second pass that refreshes the table every few walls. A newer
+ * run, or the panel unmounting, abandons the running one.
  *
  * Teardown: results are cached per `IfcDataStore` object in a WeakMap, never
  * in the viewer store. A removed or replaced model drops its store, and with
@@ -29,7 +32,7 @@ import { useViewerStore } from '@/store';
 import { getAllModelEntries } from '@/sdk/adapters/model-compat';
 import { getGlobalRenderer } from '@/hooks/useBCF';
 import type { WallAnalysisRow } from '@/lib/wall-analysis/columns';
-import { analyseWall, planModel } from '@/lib/wall-analysis/compute';
+import { addVariants, analyseWallSteps, planModel } from '@/lib/wall-analysis/compute';
 
 export interface ModelAnalysis {
   modelId: string;
@@ -41,6 +44,7 @@ export interface ModelAnalysis {
 export type WallAnalysisStatus =
   | { kind: 'idle' }
   | { kind: 'running'; done: number; total: number }
+  | { kind: 'variants'; done: number; total: number }
   | { kind: 'done' }
   | { kind: 'noModel' }
   | { kind: 'noScene' }
@@ -48,7 +52,16 @@ export type WallAnalysisStatus =
 
 const cache = new WeakMap<IfcDataStore, ModelAnalysis>();
 
-const nextMacrotask = (): Promise<void> => new Promise((resolve) => { setTimeout(resolve, 0); });
+/**
+ * Give the main thread back for one task. A MessageChannel message, not
+ * setTimeout(0): browsers clamp timers in a background tab to about one per
+ * second, which would stretch a run over many steps to minutes.
+ */
+const nextMacrotask = (): Promise<void> => new Promise((resolve) => {
+  const channel = new MessageChannel();
+  channel.port1.onmessage = () => { channel.port1.close(); resolve(); };
+  channel.port2.postMessage(null);
+});
 
 type ModelsState = Parameters<typeof getAllModelEntries>[0];
 
@@ -108,21 +121,45 @@ export function useWallAnalysis(): { models: ModelAnalysis[]; status: WallAnalys
     const jobs = plans.flatMap(({ m, plan }) => plan.walls.map((wall) => ({ m, wall })));
     setStatus({ kind: 'running', done: 0, total: jobs.length });
 
+    const lookup = (modelId: string) => (id: number) => {
+      const g = toGlobalId(modelId, id);
+      return scene.getMeshDataPieces(g) ?? scene.getInstancedMeshDataPieces?.(g) ?? openings.get(g) ?? [];
+    };
+    const abandoned = () => token !== runToken.current;
+
     void (async () => {
       try {
+        const placed: Array<{ entry: ModelAnalysis; index: number; job: (typeof jobs)[number] }> = [];
         for (let i = 0; i < jobs.length; i++) {
-          const { m, wall } = jobs[i];
-          const meshes = (id: number) => {
-            const g = toGlobalId(m.id, id);
-            return scene.getMeshDataPieces(g) ?? scene.getInstancedMeshDataPieces?.(g) ?? openings.get(g) ?? [];
-          };
-          fresh.get(m.store)?.rows.push(analyseWall(m.store, wall, meshes, { id: m.id, name: m.name }));
+          const job = jobs[i];
+          const steps = analyseWallSteps(job.m.store, job.wall, lookup(job.m.id), { id: job.m.id, name: job.m.name });
+          let step = steps.next();
+          while (!step.done) {
+            await nextMacrotask();
+            if (abandoned()) return;
+            step = steps.next();
+          }
+          const entry = fresh.get(job.m.store);
+          if (entry) placed.push({ entry, index: entry.rows.push(step.value) - 1, job });
           await nextMacrotask();
-          if (token !== runToken.current) return;
+          if (abandoned()) return;
           setStatus({ kind: 'running', done: i + 1, total: jobs.length });
         }
         for (const [store, entry] of fresh) cache.set(store, entry);
         setRevision((r) => r + 1);
+
+        const pending = placed.filter((p) => p.entry.rows[p.index].variantsPending);
+        for (let k = 0; k < pending.length; k++) {
+          if (k === 0) setStatus({ kind: 'variants', done: 0, total: pending.length });
+          const { entry, index, job } = pending[k];
+          entry.rows[index] = addVariants(job.m.store, job.wall, lookup(job.m.id), entry.rows[index]);
+          await nextMacrotask();
+          if (abandoned()) return;
+          if (k % 5 === 4 || k === pending.length - 1) {
+            setRevision((r) => r + 1);
+            setStatus({ kind: 'variants', done: k + 1, total: pending.length });
+          }
+        }
         setStatus({ kind: 'done' });
       } catch (err) {
         console.error('[wall-analysis] calculation failed', err);

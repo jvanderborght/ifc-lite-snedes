@@ -16,6 +16,7 @@ export default {
   'wallAnalysis.compute': 'Berekenen',
   'wallAnalysis.recompute': 'Opnieuw berekenen',
   'wallAnalysis.computing': 'Bezig… {done} van {total} wanden',
+  'wallAnalysis.computingVariants': 'Extra kolommen: {done} van {total} wanden…',
   'wallAnalysis.noModel': 'Geen IFC-model geladen.',
   'wallAnalysis.noWalls': 'Geen wanden gevonden (IfcWall, IfcWallStandardCase, IfcWallElementedCase).',
   'wallAnalysis.noScene': 'De 3D-scène is nog niet klaar. Wacht tot het model volledig geladen is.',

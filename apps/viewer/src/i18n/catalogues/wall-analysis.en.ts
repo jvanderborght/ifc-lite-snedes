@@ -12,6 +12,7 @@ export const wallAnalysisEn = {
   'wallAnalysis.compute': 'Calculate',
   'wallAnalysis.recompute': 'Recalculate',
   'wallAnalysis.computing': 'Calculating… {done} of {total} walls',
+  'wallAnalysis.computingVariants': 'Extra columns: {done} of {total} walls…',
   'wallAnalysis.noModel': 'No IFC model loaded.',
   'wallAnalysis.noWalls': 'No walls found (IfcWall, IfcWallStandardCase, IfcWallElementedCase).',
   'wallAnalysis.noScene': 'The 3D scene is not ready yet. Wait until the model has finished loading.',

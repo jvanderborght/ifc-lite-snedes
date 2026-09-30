@@ -106,6 +106,7 @@ export function WallAnalysisPanel({ onClose }: WallAnalysisPanelProps) {
 
   const running = status.kind === 'running';
   const message = status.kind === 'running' ? t('wallAnalysis.computing', { done: status.done, total: status.total })
+    : status.kind === 'variants' ? t('wallAnalysis.computingVariants', { done: status.done, total: status.total })
     : status.kind === 'noModel' ? t('wallAnalysis.noModel')
       : status.kind === 'noScene' ? t('wallAnalysis.noScene')
         : status.kind === 'error' ? t('wallAnalysis.failed', { message: status.message })

@@ -43,8 +43,10 @@ export interface WallAnalysisRow {
   kindSource: WallKindSource;
   area: WallAreaResult | null;
   npr: NprResult;
-  /** The comparison variants; null when the wall has no frame-zone timber. */
+  /** The comparison variants; null when the wall has no frame-zone timber, or while `variantsPending`. */
   timber: WallResult | null;
+  /** The variants are still being computed (a second pass after the main figures). */
+  variantsPending?: boolean;
 }
 
 type Value = number | string | null | typeof ND;
@@ -102,7 +104,7 @@ export function timberColumns(o: TimberColumnOptions): WallAnalysisColumn[] {
     return {
       id: `timber.${v}`, labelKey: `wallAnalysis.col.variant.${v}`, unit: '%', kind: 'pct', tier: 'more',
       total: { ratio: { num: (r) => (r.timber && r.timber.variants[v] !== null ? num(r.timber) : null), den: (r) => (r.timber && r.timber.variants[v] !== null ? den(r.timber) : null) } },
-      value: (r) => (r.timber ? r.timber.variants[v] : ND),
+      value: (r) => (r.timber ? r.timber.variants[v] : r.variantsPending ? null : ND),
     };
   });
   return [
@@ -114,7 +116,7 @@ export function timberColumns(o: TimberColumnOptions): WallAnalysisColumn[] {
     nprColumn('timber.raveling', 'wallAnalysis.col.raveling', 'm²', 'm2', 'more', 'sum', (r) => r.npr.ravelingArea),
     {
       id: 'timber.volume', labelKey: 'wallAnalysis.col.timberVolumeAuthored', unit: 'm³', kind: 'm3', tier: 'more', total: 'sum',
-      value: (r) => (r.timber ? (r.timber.variants.volumeGrossAuthored === null ? null : r.timber.timberVolumeAuthored) : ND),
+      value: (r) => (r.timber ? (r.timber.variants.volumeGrossAuthored === null ? null : r.timber.timberVolumeAuthored) : r.variantsPending ? null : ND),
     },
     ...variants,
   ];

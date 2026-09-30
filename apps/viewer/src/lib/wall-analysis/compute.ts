@@ -44,7 +44,14 @@ function comparisonVariants(store: AnalysisStore, wall: WallParts, meshes: MeshL
   );
 }
 
-export function analyseWall(store: AnalysisStore, wall: WallParts, meshes: MeshLookup, model: { id: string; name: string }): WallAnalysisRow {
+/**
+ * One wall's row in steps: the wall-area module, then the NPR timber
+ * fraction. Each `yield` is a point where the caller may give the main thread
+ * back (a large timber-frame wall takes up to a second per step). The
+ * comparison variants are left pending (`variantsPending`) for a later pass,
+ * see `addVariants`.
+ */
+export function* analyseWallSteps(store: AnalysisStore, wall: WallParts, meshes: MeshLookup, model: { id: string; name: string }): Generator<void, WallAnalysisRow> {
   const scale = store.lengthUnitScale ?? 1;
   const faces = new Map<number, FaceSet | null>();
   const authored = (id: number): FaceSet | null => {
@@ -53,6 +60,7 @@ export function analyseWall(store: AnalysisStore, wall: WallParts, meshes: MeshL
   };
   const geometry = { meshes, authored };
   const area = computeWallArea(wall, geometry);
+  yield;
   const npr = computeNpr(wall, geometry);
   const kind = wallKind(wall.name, isExternalOf(store.getProperties(wall.wallId)));
   return {
@@ -66,6 +74,21 @@ export function analyseWall(store: AnalysisStore, wall: WallParts, meshes: MeshL
     kindSource: kind.source,
     area,
     npr,
-    timber: npr.status === 'ok' ? comparisonVariants(store, wall, meshes) : null,
+    timber: null,
+    variantsPending: npr.status === 'ok',
   };
+}
+
+/** The row with its comparison variants filled in (only for walls with an NPR result). */
+export function addVariants(store: AnalysisStore, wall: WallParts, meshes: MeshLookup, row: WallAnalysisRow): WallAnalysisRow {
+  if (!row.variantsPending) return row;
+  return { ...row, timber: comparisonVariants(store, wall, meshes), variantsPending: false };
+}
+
+/** All at once (tests, scripts). */
+export function analyseWall(store: AnalysisStore, wall: WallParts, meshes: MeshLookup, model: { id: string; name: string }): WallAnalysisRow {
+  const steps = analyseWallSteps(store, wall, meshes, model);
+  let step = steps.next();
+  while (!step.done) step = steps.next();
+  return addVariants(store, wall, meshes, step.value);
 }
