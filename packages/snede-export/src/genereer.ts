@@ -64,6 +64,24 @@ export async function tekenSnede(
   return (await tekenSnedeDetail(meshes, info, vlak, opties)).lijnen;
 }
 
+/**
+ * mm the plane is moved into the drawn part before cutting. Planes at round
+ * coordinates often coincide with element faces or pass through vertices
+ * (timber frame on a grid), which gives ambiguous or broken cut lines; just
+ * behind the plane an element that touches it on the drawn side is cut
+ * cleanly and one on the removed side is left out. Perpendicular to the
+ * plane, so drawing coordinates do not change.
+ */
+export const INSCHUIVEN = 0.01;
+
+function ingeschoven(vlak: Snedevlak): Snedevlak {
+  const n = vlak.normaal;
+  const l = Math.hypot(n.x, n.y, n.z) || 1;
+  const o = vlak.oorsprong;
+  const d = INSCHUIVEN / l;
+  return { ...vlak, oorsprong: { x: o.x + n.x * d, y: o.y + n.y * d, z: o.z + n.z * d } };
+}
+
 /** As tekenSnede, plus the length (mm) removed as duplicate lines, per kind. */
 export async function tekenSnedeDetail(
   meshes: MeshData[],
@@ -71,7 +89,7 @@ export async function tekenSnedeDetail(
   vlak: Snedevlak,
   opties: ZichtOpties = {},
 ): Promise<DubbelResultaat> {
-  const { config, offsetMm } = naarSectionConfig(vlak, info);
+  const { config, offsetMm } = naarSectionConfig(ingeschoven(vlak), info);
   const generator = new Drawing2DGenerator();
   try {
     await generator.initialize();
