@@ -206,6 +206,9 @@ export class DxfR2000 {
         `$EXTMAX\n 10\n${getal(this.max.x)}\n 20\n${getal(this.max.y)}\n 30\n0.0\n`);
     }
     vervang('$INSUNITS\n 70\n4\n', `$INSUNITS\n 70\n${INSUNITS[this.eenheid]}\n`);
+    // Text style Standard in Arial (TrueType): font file, plus the family name
+    // AutoCAD reads from the ACAD extended data (1071 = pitch and family flags).
+    vervang('  3\ntxt\n  4\n\n', '  3\narial.ttf\n  4\n\n1001\nACAD\n1000\nArial\n1071\n34\n');
     const { streep, gat } = this.streep;
     if (!(streep > 0 && gat > 0)) throw new Error(`DXF: ongeldig streeppatroon ${streep}/${gat}`);
     vervang(' 40\n30.0\n 49\n20.0\n 74\n0\n 49\n-10.0\n 74\n0\n',

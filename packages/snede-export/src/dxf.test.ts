@@ -122,6 +122,15 @@ describe('schrijfDxf', () => {
     expect(dxf).toContain('\nSNEDETITEL\n');
   });
 
+  it('sets the Standard text style to Arial', () => {
+    const dxf = schrijfDxf([], {
+      annotaties: [{ soort: 'tekst', laag: 'titel', p: { x: 0, y: 0 }, hoogte: 250, waarde: 'A-A' }],
+    });
+    expect(dxf).toContain('\n  2\nStandard\n 70\n0\n');
+    expect(dxf).toContain('\n  3\narial.ttf\n  4\n\n1001\nACAD\n1000\nArial\n1071\n34\n');
+    expect(dxf).not.toContain('\n  3\ntxt\n');
+  });
+
   it('closes a square into one polyline on the class layer', () => {
     const dxf = schrijfDxf(vierkant, { eenheid: 'cm' });
     expect(dxf.match(/\nLWPOLYLINE\n/g)).toHaveLength(1);
