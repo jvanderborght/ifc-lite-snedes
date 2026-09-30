@@ -112,6 +112,8 @@ function hydrateCacheStore(
     relationships: cacheStore.relationships,
     entityIndex: extras.entityIndex,
     spatialHierarchy: cacheStore.spatialHierarchy,
+    // The cache does not keep the unit: without it a millimetre model is read as metres.
+    lengthUnitScale: extras.source.length > 0 ? extractLengthUnitScale(extras.source, extras.entityIndex) : undefined,
     onDemandPropertyMap: extras.onDemandPropertyMap,
     onDemandQuantityMap: extras.onDemandQuantityMap,
     onDemandMaterialMap: extras.onDemandMaterialMap,
@@ -325,7 +327,7 @@ export function useIfcCache() {
       if (!dataStore.spatialHierarchy && dataStore.entities && dataStore.relationships) {
         // Ensure we have source buffer and entityIndex for elevation extraction
         if (dataStore.source && dataStore.source.length > 0 && dataStore.entityIndex && dataStore.strings) {
-          const lengthUnitScale = extractLengthUnitScale(dataStore.source, dataStore.entityIndex);
+          const lengthUnitScale = dataStore.lengthUnitScale ?? 1;
           const builder = new SpatialHierarchyBuilder();
           dataStore.spatialHierarchy = builder.build(
             dataStore.entities,
