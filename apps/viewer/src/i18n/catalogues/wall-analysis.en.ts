@@ -8,7 +8,7 @@ import type { TranslationValue } from '../types';
 export const wallAnalysisEn = {
   'wallAnalysis.title': 'Wall analysis',
   'wallAnalysis.close': 'Close',
-  'wallAnalysis.intro': 'One row per wall: the timber fraction after NPR 2068 (provisional) and the net wall face area. The timber fraction needs zone information on the wall parts (pset Data, property Zone, as hsbCAD exports it).',
+  'wallAnalysis.intro': 'One row per wall: the timber fraction after NPR 2068 and the net wall face area. The timber fraction needs zone information on the wall parts (pset Data, property Zone, as hsbCAD exports it).',
   'wallAnalysis.compute': 'Calculate',
   'wallAnalysis.recompute': 'Recalculate',
   'wallAnalysis.computing': 'Calculating… {done} of {total} walls',
@@ -67,7 +67,7 @@ export const wallAnalysisEn = {
   'wallAnalysis.note.nested': 'part of another wall: not in the totals',
   'wallAnalysis.setting.ravelingIncluded': 'Raveling (studs and plates at window and door frames, ≤ 40 mm) is included in A_con and A_b.',
   'wallAnalysis.setting.ravelingExcluded': 'Raveling (studs and plates at window and door frames, ≤ 40 mm) is excluded from A_con and A_b.',
-  'wallAnalysis.setting.provisional': 'Provisional method, after NPR 2068:2022 §5.2.2, §5.5 and annex C; to be confirmed against NPR 2068:2025.',
+  'wallAnalysis.setting.provisional': 'Method after NPR 2068:2026 §5.2.2, §5.5 and annex C (for the timber fraction unchanged from NPR 2068:2022).',
   'wallAnalysis.definition.scope': 'Timber fraction: only walls whose parts carry a zone (pset Data, property Zone). Zone 0 is the frame zone (studs and plates); the other zones (sheathing, battens, foils) do not count.',
   'wallAnalysis.definition.nprFraction': 'Timber fraction NPR = A_b ÷ A_con, an area ratio in the projected wall plane (not a volume).',
   'wallAnalysis.definition.aCon': 'A_con: the outline of the zone-0 frame, projected square to the wall, minus the window and door openings. An opening is bounded by the inner faces of the studs and plates around it (ISSO details in NPR 2068 table C.1). Cavities between studs stay in A_con.',
@@ -83,5 +83,5 @@ export const wallAnalysisEn = {
   'wallAnalysis.definition.declared': 'GrossSideArea / NetSideArea in IFC: the values the exporter wrote itself (Qto_WallBaseQuantities), for comparison.',
   'wallAnalysis.definition.variants': 'Comparison variants (earlier definitions, not NPR): volume or section of the zone-0 timber relative to the frame envelope (length × height × zone thickness, gross or net of openings).',
   'wallAnalysis.definition.totals': 'Total row: areas are summed; percentages are sum over sum (Σ A_b ÷ Σ A_con), not a mean of the wall percentages. Walls that are n/d or part of another wall do not count.',
-  'wallAnalysis.definition.source': 'Reference: NPR 2068:2022, §5.2.2, §5.5, annex C and example E.9 (timber-frame façade element, timber 11.7 %). Geometry read from the parts’ faceted B-reps as exported.',
+  'wallAnalysis.definition.source': 'Reference: NPR 2068:2026, §5.2.2, §5.5, annex C and example E.7 / figure E.9 (timber-frame façade element, timber 11.7 %). Geometry read from the parts’ faceted B-reps as exported.',
 } as const satisfies Record<string, TranslationValue>;

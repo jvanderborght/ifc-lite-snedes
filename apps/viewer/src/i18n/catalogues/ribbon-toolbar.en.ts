@@ -138,6 +138,8 @@ export const ribbonToolbarEn = {
   'ribbon.analyze.dataGroup': 'Data',
   'ribbon.analyze.cost': 'Cost',
   'ribbon.analyze.costTooltip': 'IFC 5D cost inspector',
+  'ribbon.analyze.wallAnalysis': 'Wall analysis',
+  'ribbon.analyze.wallAnalysisTooltip': 'Wood percentage (NPR 2068) and wall area per wall',
   'ribbon.analyze.lists': 'Lists',
   'ribbon.analyze.listsTooltip': 'Entity lists',
   'ribbon.analyze.schedule': 'Schedule',

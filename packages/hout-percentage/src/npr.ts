@@ -3,7 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /**
- * Timber fraction the NPR 2068 way (provisional reading, see below): an AREA
+ * Timber fraction the NPR 2068:2026 way (see below for how the model is read): an AREA
  * ratio in the projected wall plane, not a volume.
  *
  *   fraction = A_b / A_con,  A_a = A_con - A_b

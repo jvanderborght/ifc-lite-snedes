@@ -12,7 +12,7 @@ import type { Catalogue } from '../registry';
 export default {
   'wallAnalysis.title': 'Wandanalyse',
   'wallAnalysis.close': 'Sluiten',
-  'wallAnalysis.intro': 'Eén rij per wand: het houtpercentage volgens NPR 2068 (voorlopig) en de netto wandoppervlakte. Het houtpercentage vraagt zone-informatie op de onderdelen van de wand (pset Data, eigenschap Zone, zoals hsbCAD exporteert).',
+  'wallAnalysis.intro': 'Eén rij per wand: het houtpercentage volgens NPR 2068 en de netto wandoppervlakte. Het houtpercentage vraagt zone-informatie op de onderdelen van de wand (pset Data, eigenschap Zone, zoals hsbCAD exporteert).',
   'wallAnalysis.compute': 'Berekenen',
   'wallAnalysis.recompute': 'Opnieuw berekenen',
   'wallAnalysis.computing': 'Bezig… {done} van {total} wanden',
@@ -71,7 +71,7 @@ export default {
   'wallAnalysis.note.nested': 'deel van een andere wand: niet in de totalen',
   'wallAnalysis.setting.ravelingIncluded': 'Raveling (stijlen en regels aan raam- en deurkozijnen, ≤ 40 mm) zit in A_con en A_b.',
   'wallAnalysis.setting.ravelingExcluded': 'Raveling (stijlen en regels aan raam- en deurkozijnen, ≤ 40 mm) is uitgesloten uit A_con en A_b.',
-  'wallAnalysis.setting.provisional': 'Voorlopige rekenwijze, naar NPR 2068:2022 §5.2.2, §5.5 en bijlage C; te bevestigen met NPR 2068:2025.',
+  'wallAnalysis.setting.provisional': 'Rekenwijze naar NPR 2068:2026 §5.2.2, §5.5 en bijlage C (voor het houtpercentage ongewijzigd t.o.v. NPR 2068:2022).',
   'wallAnalysis.definition.scope': 'Houtpercentage: enkel wanden waarvan de onderdelen een zone hebben (pset Data, eigenschap Zone). Zone 0 is het regelwerk (stijlen en regels); de andere zones (beplating, latten, folies) tellen niet mee.',
   'wallAnalysis.definition.nprFraction': 'Houtpercentage NPR = A_b ÷ A_con, een oppervlakteverhouding in het geprojecteerde wandvlak (geen volume).',
   'wallAnalysis.definition.aCon': 'A_con: de omtrek van het regelwerk (zone 0), loodrecht op de wand geprojecteerd, min de raam- en deuropeningen. Een opening wordt begrensd door de binnenzijde van de stijlen en regels eromheen (ISSO-details in NPR 2068 tabel C.1). De vakken tussen de stijlen blijven in A_con.',
@@ -87,5 +87,5 @@ export default {
   'wallAnalysis.definition.declared': 'GrossSideArea / NetSideArea in IFC: de waarden die de exporter zelf schreef (Qto_WallBaseQuantities), ter vergelijking.',
   'wallAnalysis.definition.variants': 'Vergelijkingsvarianten (eerdere definities, geen NPR): volume of doorsnede van het hout in zone 0 ten opzichte van de regelwerkomhullende (lengte × hoogte × zonedikte, bruto of netto van openingen).',
   'wallAnalysis.definition.totals': 'Totaalrij: oppervlakten worden opgeteld; percentages zijn som over som (Σ A_b ÷ Σ A_con), geen gemiddelde van de wandpercentages. Wanden die n.b. zijn of deel van een andere wand tellen niet mee.',
-  'wallAnalysis.definition.source': 'Bron: NPR 2068:2022, §5.2.2, §5.5, bijlage C en rekenvoorbeeld E.9 (HSB-gevelelement, hout 11,7 %). Geometrie gelezen uit de facetten-B-reps van de onderdelen zoals geëxporteerd.',
+  'wallAnalysis.definition.source': 'Bron: NPR 2068:2026, §5.2.2, §5.5, bijlage C en rekenvoorbeeld E.7 / figuur E.9 (HSB-gevelelement, hout 11,7 %). Geometrie gelezen uit de facetten-B-reps van de onderdelen zoals geëxporteerd.',
 } satisfies Catalogue;
