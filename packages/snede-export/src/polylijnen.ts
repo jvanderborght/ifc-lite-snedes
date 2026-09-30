@@ -27,25 +27,45 @@ const LAS = 0.1;
 const RECHT = 1e-4;        // mm: max distance of a dropped vertex from its run
 
 /**
- * Vertex welding with a grid of cell LAS: a point joins an existing vertex
- * within LAS found in its own or a neighbouring cell, so two close points on
- * either side of a cell border still weld.
+ * Vertex welding with a grid of cell LAS: a point joins the existing
+ * vertices within LAS found in its own or a neighbouring cell, so two close
+ * points on either side of a cell border still weld. Welding is transitive:
+ * a point that reaches several vertices merges them (union-find), otherwise
+ * a run of segments shorter than LAS would drop the one link between its two
+ * ends. Resolve keys with `wortel` only after every point has been welded.
  */
 class Lasser {
-  private cellen = new Map<string, { k: string; p: Punt }[]>();
-  private n = 0;
+  private cellen = new Map<string, { k: number; p: Punt }[]>();
+  private ouder: number[] = [];
 
-  sleutel(p: Punt): string {
+  wortel(k: number): number {
+    while (this.ouder[k] !== k) {
+      this.ouder[k] = this.ouder[this.ouder[k]];
+      k = this.ouder[k];
+    }
+    return k;
+  }
+
+  sleutel(p: Punt): number {
     const i = Math.floor(p.x / LAS);
     const j = Math.floor(p.y / LAS);
+    let gevonden = -1;
     for (let di = -1; di <= 1; di++) {
       for (let dj = -1; dj <= 1; dj++) {
         for (const v of this.cellen.get(`${i + di},${j + dj}`) ?? []) {
-          if (Math.hypot(v.p.x - p.x, v.p.y - p.y) <= LAS) return v.k;
+          if (Math.hypot(v.p.x - p.x, v.p.y - p.y) > LAS) continue;
+          const w = this.wortel(v.k);
+          if (gevonden < 0) gevonden = w;
+          else if (w !== gevonden) {
+            this.ouder[Math.max(w, gevonden)] = Math.min(w, gevonden);
+            gevonden = Math.min(w, gevonden);
+          }
         }
       }
     }
-    const k = String(this.n++);
+    if (gevonden >= 0) return gevonden;
+    const k = this.ouder.length;
+    this.ouder.push(k);
     const c = `${i},${j}`;
     const lijst = this.cellen.get(c);
     if (lijst) lijst.push({ k, p }); else this.cellen.set(c, [{ k, p }]);
@@ -81,9 +101,10 @@ function ketens(segmenten: Lijn[]): { punten: Punt[]; gesloten: boolean }[] {
     buren.get(a)!.push({ naar: b, seg });
   };
   const lasser = new Lasser();
+  const ruw = segmenten.map((s) => [lasser.sleutel(s.a), lasser.sleutel(s.b)] as const);
   segmenten.forEach((s, i) => {
-    const a = lasser.sleutel(s.a);
-    const b = lasser.sleutel(s.b);
+    const a = String(lasser.wortel(ruw[i][0]));
+    const b = String(lasser.wortel(ruw[i][1]));
     if (a === b) return;                       // degenerate after welding
     if (!knopen.has(a)) knopen.set(a, s.a);
     if (!knopen.has(b)) knopen.set(b, s.b);
