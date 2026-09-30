@@ -14,7 +14,7 @@
  */
 
 import { BrickWall, Download, Play, RotateCcw, X } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RelationshipType } from '@ifc-lite/data';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -67,7 +67,7 @@ function selectWall(row: WallAnalysisRow): void {
 
 export function WallAnalysisPanel({ onClose }: WallAnalysisPanelProps) {
   const { t, locale } = useTranslation();
-  const { models, status, run } = useWallAnalysis();
+  const { models, status, run, computeVariants } = useWallAnalysis();
   const [excludeRaveling, setExcludeRaveling] = useState(false);
   const [more, setMore] = useState(false);
   const [filter, setFilter] = useState<WallFilter>(NO_FILTER);
@@ -82,6 +82,11 @@ export function WallAnalysisPanel({ onClose }: WallAnalysisPanelProps) {
   // Table, totals, export and row selection all work on the rows the filter shows.
   const rows = useMemo(() => allRows.filter((r) => matchesFilter(filter, r)), [allRows, filter]);
   const withoutZones = models.filter((m) => !m.hasZones);
+  // The comparison variants are computed only once "more columns" asks for them.
+  const variantsPending = allRows.some((r) => r.variantsPending);
+  useEffect(() => {
+    if (more && variantsPending && status.kind === 'done') computeVariants();
+  }, [more, variantsPending, status.kind, computeVariants]);
   const table = useMemo(() => {
     const kindLabel = (k: WallKind) => t(`wallAnalysis.kind.${k}`);
     const columns = allColumns({ excludeRaveling, more, multiModel: models.length > 1, kindLabel });
@@ -127,7 +132,7 @@ export function WallAnalysisPanel({ onClose }: WallAnalysisPanelProps) {
       </div>
       <div className="flex flex-wrap items-center gap-2 border-b p-3">
         <p className="w-full text-xs text-muted-foreground">{t('wallAnalysis.intro')}</p>
-        <Button size="sm" onClick={run} disabled={running}>
+        <Button size="sm" onClick={() => run(more)} disabled={running}>
           {allRows.length > 0 ? <RotateCcw className="mr-1 h-3.5 w-3.5" /> : <Play className="mr-1 h-3.5 w-3.5" />}
           {allRows.length > 0 ? t('wallAnalysis.recompute') : t('wallAnalysis.compute')}
         </Button>

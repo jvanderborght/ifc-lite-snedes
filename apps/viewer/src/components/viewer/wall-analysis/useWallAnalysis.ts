@@ -12,22 +12,25 @@
  * those). Walls, parts and zones come from each model's own `IfcDataStore`;
  * the authored B-reps are read from it too.
  *
- * The work is sliced per step of a wall (area, then NPR; a large timber-frame
- * wall takes up to a second per step) with a macrotask yield in between, so
- * the viewer stays usable and the progress line moves. The table is shown as
- * soon as the main figures are in; the comparison variants ("more columns")
- * follow in a second pass that refreshes the table every few walls. A newer
+ * The work is sliced per step of a wall (area, then NPR) with a macrotask
+ * yield in between, so the viewer stays usable and the progress line moves.
+ * The table is shown as soon as the main figures are in. The comparison
+ * variants ("more columns", about a third of the work) are only computed when
+ * asked for: right after the main pass when "more columns" is on, or later
+ * through `computeVariants`, refreshing the table every few walls. A newer
  * run, or the panel unmounting, abandons the running one.
  *
- * Teardown: results are cached per `IfcDataStore` object in a WeakMap, never
- * in the viewer store. A removed or replaced model drops its store, and with
- * it the cache entry; the panel re-derives which models are loaded from the
- * live `models` Map on every render, so it can never show a stale model.
+ * Teardown: results, and the walls still waiting for their variants, are
+ * cached per `IfcDataStore` object in WeakMaps, never in the viewer store. A
+ * removed or replaced model drops its store, and with it the entries; the
+ * panel re-derives which models are loaded from the live `models` Map on
+ * every render, so it can never show a stale model.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MeshData } from '@ifc-lite/geometry';
 import type { IfcDataStore } from '@ifc-lite/parser';
+import type { WallParts } from '@ifc-lite/wand-oppervlak';
 import { useViewerStore } from '@/store';
 import { getAllModelEntries } from '@/sdk/adapters/model-compat';
 import { getGlobalRenderer } from '@/hooks/useBCF';
@@ -52,7 +55,11 @@ export type WallAnalysisStatus =
   | { kind: 'noScene' }
   | { kind: 'error'; message: string };
 
+type PendingVariant = { index: number; wall: WallParts; modelId: string };
+
 const cache = new WeakMap<IfcDataStore, ModelAnalysis>();
+/** Walls whose comparison variants are not computed yet, per model store (row index into its cache entry). */
+const pendingVariants = new WeakMap<IfcDataStore, PendingVariant[]>();
 
 /**
  * Give the main thread back for one task. A MessageChannel message, not
@@ -90,7 +97,24 @@ function loadedStores(state: ModelsState): Array<{ id: string; name: string; sto
   return out;
 }
 
-export function useWallAnalysis(): { models: ModelAnalysis[]; status: WallAnalysisStatus; run: () => void } {
+/** Mesh lookup by (model, express id): the Scene's pieces, then opening meshes; null without a Scene. */
+function meshLookup(): ((modelId: string) => (id: number) => readonly MeshData[]) | null {
+  const scene = getGlobalRenderer()?.getScene();
+  if (!scene) return null;
+  const toGlobalId = useViewerStore.getState().toGlobalId;
+  const openings = openingMeshes();
+  return (modelId: string) => (id: number) => {
+    const g = toGlobalId(modelId, id);
+    return scene.getMeshDataPieces(g) ?? scene.getInstancedMeshDataPieces?.(g) ?? openings.get(g) ?? [];
+  };
+}
+
+export function useWallAnalysis(): {
+  models: ModelAnalysis[];
+  status: WallAnalysisStatus;
+  run: (withVariants: boolean) => void;
+  computeVariants: () => void;
+} {
   const models = useViewerStore((s) => s.models);
   const legacyStore = useViewerStore((s) => s.ifcDataStore);
   const [status, setStatus] = useState<WallAnalysisStatus>({ kind: 'idle' });
@@ -109,29 +133,53 @@ export function useWallAnalysis(): { models: ModelAnalysis[]; status: WallAnalys
     return revision >= 0 ? out : [];
   }, [models, legacyStore, revision]);
 
-  const run = useCallback(() => {
+  /** The variants pass over every loaded model's pending walls. */
+  const variantsPass = useCallback(async (token: number): Promise<void> => {
+    const lookup = meshLookup();
+    if (!lookup) { setStatus({ kind: 'noScene' }); return; }
+    const jobs = loadedStores(useViewerStore.getState()).flatMap((m) => {
+      const entry = cache.get(m.store);
+      return entry ? (pendingVariants.get(m.store) ?? []).map((p) => ({ ...p, store: m.store, entry })) : [];
+    });
+    for (let k = 0; k < jobs.length; k++) {
+      if (k === 0) setStatus({ kind: 'variants', done: 0, total: jobs.length });
+      const { store, entry, index, wall, modelId } = jobs[k];
+      entry.rows[index] = addVariants(store, wall, lookup(modelId), entry.rows[index]);
+      await nextMacrotask();
+      if (token !== runToken.current) return;
+      if (k % 5 === 4 || k === jobs.length - 1) {
+        setRevision((r) => r + 1);
+        setStatus({ kind: 'variants', done: k + 1, total: jobs.length });
+      }
+    }
+    for (const j of jobs) pendingVariants.delete(j.store);
+    setStatus({ kind: 'done' });
+  }, []);
+
+  const computeVariants = useCallback(() => {
+    const token = ++runToken.current;
+    variantsPass(token).catch((err) => {
+      console.error('[wall-analysis] variants failed', err);
+      if (token === runToken.current) setStatus({ kind: 'error', message: err instanceof Error ? err.message : String(err) });
+    });
+  }, [variantsPass]);
+
+  const run = useCallback((withVariants: boolean) => {
     const token = ++runToken.current;
     const stores = loadedStores(useViewerStore.getState());
     if (stores.length === 0) { setStatus({ kind: 'noModel' }); return; }
-    const scene = getGlobalRenderer()?.getScene();
-    if (!scene) { setStatus({ kind: 'noScene' }); return; }
-    const toGlobalId = useViewerStore.getState().toGlobalId;
-    const openings = openingMeshes();
+    const lookup = meshLookup();
+    if (!lookup) { setStatus({ kind: 'noScene' }); return; }
 
     const plans = stores.map((m) => ({ m, plan: planModel(m.store) }));
     const fresh = new Map<IfcDataStore, ModelAnalysis>(plans.map(({ m, plan }) => [m.store, { modelId: m.id, modelName: m.name, hasZones: plan.hasZones, partsNotInWalls: plan.partsNotInWalls, rows: [] }]));
     const jobs = plans.flatMap(({ m, plan }) => plan.walls.map((wall) => ({ m, wall })));
     setStatus({ kind: 'running', done: 0, total: jobs.length });
-
-    const lookup = (modelId: string) => (id: number) => {
-      const g = toGlobalId(modelId, id);
-      return scene.getMeshDataPieces(g) ?? scene.getInstancedMeshDataPieces?.(g) ?? openings.get(g) ?? [];
-    };
     const abandoned = () => token !== runToken.current;
 
     void (async () => {
       try {
-        const placed: Array<{ entry: ModelAnalysis; index: number; job: (typeof jobs)[number] }> = [];
+        const pending = new Map<IfcDataStore, PendingVariant[]>();
         for (let i = 0; i < jobs.length; i++) {
           const job = jobs[i];
           const steps = analyseWallSteps(job.m.store, job.wall, lookup(job.m.id), { id: job.m.id, name: job.m.name });
@@ -143,33 +191,31 @@ export function useWallAnalysis(): { models: ModelAnalysis[]; status: WallAnalys
           }
           const entry = fresh.get(job.m.store);
           const row = entry?.partsNotInWalls && step.value.npr.status === 'noZones' ? { ...step.value, partsNotInWall: true } : step.value;
-          if (entry) placed.push({ entry, index: entry.rows.push(row) - 1, job });
+          if (entry) {
+            const index = entry.rows.push(row) - 1;
+            if (row.variantsPending) {
+              const list = pending.get(job.m.store) ?? [];
+              list.push({ index, wall: job.wall, modelId: job.m.id });
+              pending.set(job.m.store, list);
+            }
+          }
           await nextMacrotask();
           if (abandoned()) return;
           setStatus({ kind: 'running', done: i + 1, total: jobs.length });
         }
-        for (const [store, entry] of fresh) cache.set(store, entry);
-        setRevision((r) => r + 1);
-
-        const pending = placed.filter((p) => p.entry.rows[p.index].variantsPending);
-        for (let k = 0; k < pending.length; k++) {
-          if (k === 0) setStatus({ kind: 'variants', done: 0, total: pending.length });
-          const { entry, index, job } = pending[k];
-          entry.rows[index] = addVariants(job.m.store, job.wall, lookup(job.m.id), entry.rows[index]);
-          await nextMacrotask();
-          if (abandoned()) return;
-          if (k % 5 === 4 || k === pending.length - 1) {
-            setRevision((r) => r + 1);
-            setStatus({ kind: 'variants', done: k + 1, total: pending.length });
-          }
+        for (const [store, entry] of fresh) {
+          cache.set(store, entry);
+          pendingVariants.set(store, pending.get(store) ?? []);
         }
-        setStatus({ kind: 'done' });
+        setRevision((r) => r + 1);
+        if (withVariants) await variantsPass(token);
+        else setStatus({ kind: 'done' });
       } catch (err) {
         console.error('[wall-analysis] calculation failed', err);
         if (token === runToken.current) setStatus({ kind: 'error', message: err instanceof Error ? err.message : String(err) });
       }
     })();
-  }, []);
+  }, [variantsPass]);
 
-  return { models: analysed, status, run };
+  return { models: analysed, status, run, computeVariants };
 }

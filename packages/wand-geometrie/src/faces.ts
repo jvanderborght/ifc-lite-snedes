@@ -81,11 +81,36 @@ export function boxOf(faces: FaceSet): Box {
   return b;
 }
 
+/**
+ * A face seen edge-on from the wall (its normal has no component through the
+ * wall thickness, local axis 1) projects to a line: it adds no area, since
+ * the faces of a solid that do face the wall cover the same projection (a
+ * member across the frame projects through its end faces). Skipping it saves
+ * its edges' row loops, which for a stud's side faces run the full height.
+ * Relative tolerance: a face tilted less than this projects thinner than a
+ * micrometre per metre.
+ */
+const EDGE_ON = 1e-6;
+
+/** |normal · across| / |normal| of a planar loop (Newell), in local coordinates. */
+function acrossShare(p: Float64Array, s: number, e: number): number {
+  let nx = 0, ny = 0, nz = 0;
+  for (let i = s; i < e; i++) {
+    const a = 3 * i, b = 3 * (i + 1 < e ? i + 1 : s);
+    nx += (p[a + 1] - p[b + 1]) * (p[a + 2] + p[b + 2]);
+    ny += (p[a + 2] - p[b + 2]) * (p[a] + p[b]);
+    nz += (p[a] - p[b]) * (p[a + 1] + p[b + 1]);
+  }
+  const len = Math.hypot(nx, ny, nz);
+  return len > 0 ? Math.abs(ny) / len : 0;
+}
+
 /** A triangle is convex: per row, the span between its lowest and highest
  *  crossing (same half-open rule as the general case, no sort needed). */
 function projectTriangle(target: RowSpans, p: Float64Array, o: number, uLo: number, uHi: number): void {
   const hMin = Math.min(p[o + 2], p[o + 5], p[o + 8]), hMax = Math.max(p[o + 2], p[o + 5], p[o + 8]);
   if (hMax === hMin) return;
+  if (acrossShare(p, o / 3, o / 3 + 3) <= EDGE_ON) return;
   const [first, last] = target.rowRange(hMin, hMax);
   for (let j = first; j <= last; j++) {
     const hc = target.centre(j);
@@ -108,13 +133,16 @@ function projectTriangle(target: RowSpans, p: Float64Array, o: number, uLo: numb
 /** Add the orthogonal projection of local faces onto the wall plane, optionally clipped to [uLo, uHi]. */
 export function projectFaces(target: RowSpans, faces: FaceSet, uLo = -Infinity, uHi = Infinity): void {
   const p = faces.points, ls = faces.loopStart, fs = faces.faceStart;
-  const hits: number[] = []; // row, u pairs of the current face
+  // Crossings (row, u) of the current face, reused across faces.
+  let rowOf = new Int32Array(64), uOf = new Float64Array(64);
+  let count = new Int32Array(0), sorted = new Float64Array(0);
   for (let f = 0; f + 1 < fs.length; f++) {
     if (fs[f + 1] - fs[f] === 1 && ls[fs[f] + 1] - ls[fs[f]] === 3) {
       projectTriangle(target, p, 3 * ls[fs[f]], uLo, uHi);
       continue;
     }
-    hits.length = 0;
+    if (acrossShare(p, ls[fs[f]], ls[fs[f] + 1]) <= EDGE_ON) continue;
+    let n = 0, rowLo = Infinity, rowHi = -Infinity;
     for (let k = fs[f]; k < fs[f + 1]; k++) {
       const s = ls[k], e = ls[k + 1];
       for (let i = s; i < e; i++) {
@@ -126,18 +154,38 @@ export function projectFaces(target: RowSpans, faces: FaceSet, uLo = -Infinity, 
         for (let j = first; j <= last; j++) {
           const hc = target.centre(j);
           if (hc < lo || hc >= hi) continue; // half-open: a shared vertex counts once
-          hits.push(j, p[a] + ((hc - ha) / (hb - ha)) * (p[b] - p[a]));
+          if (n === rowOf.length) {
+            const r2 = new Int32Array(2 * n); r2.set(rowOf); rowOf = r2;
+            const u2 = new Float64Array(2 * n); u2.set(uOf); uOf = u2;
+          }
+          rowOf[n] = j;
+          uOf[n] = p[a] + ((hc - ha) / (hb - ha)) * (p[b] - p[a]);
+          n++;
+          if (j < rowLo) rowLo = j;
+          if (j > rowHi) rowHi = j;
         }
       }
     }
-    if (hits.length === 0) continue;
-    const order = Array.from({ length: hits.length / 2 }, (_, i) => i)
-      .sort((x, y) => hits[2 * x] - hits[2 * y] || hits[2 * x + 1] - hits[2 * y + 1]);
-    for (let m = 0; m + 1 < order.length; m += 2) {
-      const r0 = hits[2 * order[m]], r1 = hits[2 * order[m + 1]];
-      if (r0 !== r1) { m--; continue; } // odd row (open loop): resynchronise on the next row
-      const a = Math.max(hits[2 * order[m] + 1], uLo), b = Math.min(hits[2 * order[m + 1] + 1], uHi);
-      if (b > a) target.add(r0, a, b);
+    if (n === 0) continue;
+    // Bucket the crossings by row (counting sort), then sort each row's few u values.
+    const rows = rowHi - rowLo + 1;
+    if (count.length < rows + 1) count = new Int32Array(rows + 1); else count.fill(0, 0, rows + 1);
+    if (sorted.length < n) sorted = new Float64Array(n);
+    for (let i = 0; i < n; i++) count[rowOf[i] - rowLo + 1]++;
+    for (let r = 0; r < rows; r++) count[r + 1] += count[r];
+    for (let i = 0; i < n; i++) sorted[count[rowOf[i] - rowLo]++] = uOf[i];
+    // count[r] now holds the end of row r; pair even-odd within each row and
+    // drop an odd leftover (open loop), as before.
+    let s = 0;
+    for (let r = 0; r < rows; r++) {
+      const e = count[r];
+      if (e - s > 2) sorted.subarray(s, e).sort();
+      else if (e - s === 2 && sorted[s] > sorted[s + 1]) { const t = sorted[s]; sorted[s] = sorted[s + 1]; sorted[s + 1] = t; }
+      for (let m = s; m + 1 < e; m += 2) {
+        const a = Math.max(sorted[m], uLo), b = Math.min(sorted[m + 1], uHi);
+        if (b > a) target.add(r + rowLo, a, b);
+      }
+      s = e;
     }
   }
 }
