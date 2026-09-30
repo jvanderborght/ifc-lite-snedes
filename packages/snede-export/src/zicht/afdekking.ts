@@ -20,8 +20,12 @@ import type { P3, Rand } from './randen.js';
 export const TOL_DIEPTE = 0.05;
 /** Edges closer than this (mm) to the plane lie in it: they are on the cut already. */
 export const TOL_VLAK = 0.05;
-/** Inside tolerance (mm): touching an occluder's outline counts as inside. */
-const TOL_BINNEN = 1e-5;
+/**
+ * Inside tolerance (mm): touching an occluder's outline counts as inside.
+ * Well above float32 noise in metre coordinates (~0.5 µm at 5 m), so an edge
+ * right behind the joint of two abutting sheets is hidden by them together.
+ */
+const TOL_BINNEN = 0.01;
 
 type Interval = [number, number];
 
@@ -119,6 +123,11 @@ export class Afdekking {
     const ex = r.b.x - r.a.x;
     const ey = r.b.y - r.a.y;
     const opp = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+    // A face seen edge-on projects to a sliver without width: it covers
+    // nothing, but the inside tolerance would widen it into a band that hides
+    // the lines it lies on, its own front edge included.
+    const langste = Math.max(Math.hypot(bx - ax, by - ay), Math.hypot(cx - bx, cy - by), Math.hypot(ax - cx, ay - cy));
+    if (Math.abs(opp) <= 2 * TOL_BINNEN * langste) return null;
     const s = Math.sign(opp);
     const iv: Interval = [0, 1];
     const hoeken = [[ax, ay, bx, by], [bx, by, cx, cy], [cx, cy, ax, ay]];
