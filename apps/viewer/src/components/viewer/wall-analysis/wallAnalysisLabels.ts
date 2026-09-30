@@ -24,6 +24,8 @@ export function rowNotes(t: T, r: WallAnalysisRow): string {
   if (r.npr.partsWithoutGeometry > 0) notes.push(t('wallAnalysis.note.partsWithoutGeometry', { count: r.npr.partsWithoutGeometry }));
   if (!r.area || r.area.partsCounted === 0) notes.push(t('wallAnalysis.note.noAreaGeometry'));
   if (r.nested) notes.push(t('wallAnalysis.note.nested'));
+  if (r.kindSource === 'isExternal') notes.push(t('wallAnalysis.note.kindFromIsExternal'));
+  if (r.kindSource === 'none') notes.push(t('wallAnalysis.note.kindUnknown'));
   return notes.join('; ');
 }
 
@@ -31,6 +33,8 @@ export interface TableOptions {
   excludeRaveling: boolean;
   more: boolean;
   dateText: string;
+  /** The active row filter in words, for the report settings; empty when all rows are shown. */
+  filter: readonly string[];
 }
 
 export function wallAnalysisTable(t: T, rows: readonly WallAnalysisRow[], columns: readonly WallAnalysisColumn[], o: TableOptions): WallTable {
@@ -38,6 +42,7 @@ export function wallAnalysisTable(t: T, rows: readonly WallAnalysisRow[], column
   const counted = rows.filter((r) => !r.nested).length;
   const definitions = [
     t('wallAnalysis.definition.scope'),
+    t('wallAnalysis.definition.kind'),
     t('wallAnalysis.definition.nprFraction'),
     t('wallAnalysis.definition.aCon'),
     t('wallAnalysis.definition.aB'),
@@ -64,6 +69,7 @@ export function wallAnalysisTable(t: T, rows: readonly WallAnalysisRow[], column
     settings: [
       o.excludeRaveling ? t('wallAnalysis.setting.ravelingExcluded') : t('wallAnalysis.setting.ravelingIncluded'),
       t('wallAnalysis.setting.provisional'),
+      ...o.filter,
     ],
   }, rows.map((r) => rowNotes(t, r)));
 }

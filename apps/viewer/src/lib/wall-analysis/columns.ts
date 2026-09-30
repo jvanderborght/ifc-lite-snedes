@@ -21,6 +21,7 @@
 import type { NprResult, WallResult } from '@ifc-lite/hout-percentage';
 import { WALL_AREA_COLUMNS, type WallAreaResult } from '@ifc-lite/wand-oppervlak';
 import type { TranslationKey } from '@/i18n/en';
+import type { WallKind, WallKindSource } from './kind';
 
 export type CellKind = 'text' | 'int' | 'm' | 'mm' | 'm2' | 'm3' | 'pct';
 
@@ -37,6 +38,9 @@ export interface WallAnalysisRow {
   ifcType: string;
   /** A wall aggregated by another wall: listed, but left out of every total. */
   nested: boolean;
+  /** Exterior, interior, party wall, floor or roof (`kind.ts`), for filtering. */
+  kind: WallKind;
+  kindSource: WallKindSource;
   area: WallAreaResult | null;
   npr: NprResult;
   /** The comparison variants; null when the wall has no frame-zone timber. */
@@ -134,17 +138,19 @@ export function areaColumns(): WallAnalysisColumn[] {
 
 // ---- the wall itself -----------------------------------------------------
 
-export function wallColumns(multiModel: boolean): WallAnalysisColumn[] {
+/** `kindLabel` (render side, translated) adds the kind column after the wall name. */
+export function wallColumns(multiModel: boolean, kindLabel?: (kind: WallKind) => string): WallAnalysisColumn[] {
   const text = (id: string, labelKey: TranslationKey, value: (r: WallAnalysisRow) => string): WallAnalysisColumn =>
     ({ id, labelKey, unit: '', kind: 'text', total: 'none', tier: 'primary', value });
   return [
     ...(multiModel ? [text('model', 'wallAnalysis.col.model', (r) => r.modelName)] : []),
     text('wall', 'wallAnalysis.col.wall', (r) => r.name),
+    ...(kindLabel ? [text('kind', 'wallAnalysis.col.kind', (r) => kindLabel(r.kind))] : []),
   ];
 }
 
 /** All columns in display order: the wall, timber, area; `more` columns only when asked. */
-export function allColumns(options: TimberColumnOptions & { multiModel: boolean; more: boolean }): WallAnalysisColumn[] {
-  const cols = [...wallColumns(options.multiModel), ...timberColumns(options), ...areaColumns()];
+export function allColumns(options: TimberColumnOptions & { multiModel: boolean; more: boolean; kindLabel?: (kind: WallKind) => string }): WallAnalysisColumn[] {
+  const cols = [...wallColumns(options.multiModel, options.kindLabel), ...timberColumns(options), ...areaColumns()];
   return options.more ? cols : cols.filter((c) => c.tier === 'primary');
 }

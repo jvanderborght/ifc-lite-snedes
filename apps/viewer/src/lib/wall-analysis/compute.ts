@@ -15,6 +15,7 @@
 import { authoredVolume, computeNpr, computeWall, type WallResult } from '@ifc-lite/hout-percentage';
 import { authoredFaces, collectWalls, computeWallArea, type EntityReader, type FaceSet, type MeshPiece, type WallAreaStore, type WallParts } from '@ifc-lite/wand-oppervlak';
 import type { WallAnalysisRow } from './columns';
+import { isExternalOf, wallKind } from './kind';
 
 export type AnalysisStore = WallAreaStore & EntityReader;
 export type MeshLookup = (expressId: number) => readonly MeshPiece[];
@@ -53,6 +54,7 @@ export function analyseWall(store: AnalysisStore, wall: WallParts, meshes: MeshL
   const geometry = { meshes, authored };
   const area = computeWallArea(wall, geometry);
   const npr = computeNpr(wall, geometry);
+  const kind = wallKind(wall.name, isExternalOf(store.getProperties(wall.wallId)));
   return {
     modelId: model.id,
     modelName: model.name,
@@ -60,6 +62,8 @@ export function analyseWall(store: AnalysisStore, wall: WallParts, meshes: MeshL
     name: wall.name,
     ifcType: wall.ifcType,
     nested: wall.parentWallId !== null,
+    kind: kind.kind,
+    kindSource: kind.source,
     area,
     npr,
     timber: npr.status === 'ok' ? comparisonVariants(store, wall, meshes) : null,

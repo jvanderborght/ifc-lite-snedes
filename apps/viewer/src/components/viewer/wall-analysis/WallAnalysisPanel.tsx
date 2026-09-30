@@ -23,11 +23,14 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { downloadBlob, downloadFile, sanitizeFilename, stripExtension } from '@/lib/export/download';
 import { allColumns, type WallAnalysisRow } from '@/lib/wall-analysis/columns';
 import { toCsv, toHtml, toTxt } from '@/lib/wall-analysis/export-text';
+import { matchesFilter, NO_FILTER, type WallFilter } from '@/lib/wall-analysis/filter';
+import { WALL_KINDS, type WallKind } from '@/lib/wall-analysis/kind';
 import { formatCell } from '@/lib/wall-analysis/table';
 import { LEGACY_MODEL_ID } from '@/sdk/adapters/model-compat';
 import { useViewerStore } from '@/store';
 import { wallAnalysisTable } from './wallAnalysisLabels';
 import { useWallAnalysis } from './useWallAnalysis';
+import { WallKindFilter } from './WallKindFilter';
 
 export interface WallAnalysisPanelProps {
   onClose?: () => void;
@@ -67,14 +70,27 @@ export function WallAnalysisPanel({ onClose }: WallAnalysisPanelProps) {
   const { models, status, run } = useWallAnalysis();
   const [excludeRaveling, setExcludeRaveling] = useState(false);
   const [more, setMore] = useState(false);
+  const [filter, setFilter] = useState<WallFilter>(NO_FILTER);
   const decimal = decimalSeparator(locale);
 
-  const rows = useMemo(() => models.flatMap((m) => m.rows), [models]);
+  const allRows = useMemo(() => models.flatMap((m) => m.rows), [models]);
+  const counts = useMemo(() => {
+    const c = new Map<WallKind, number>();
+    for (const r of allRows) c.set(r.kind, (c.get(r.kind) ?? 0) + 1);
+    return c;
+  }, [allRows]);
+  // Table, totals, export and row selection all work on the rows the filter shows.
+  const rows = useMemo(() => allRows.filter((r) => matchesFilter(filter, r)), [allRows, filter]);
   const withoutZones = models.filter((m) => !m.hasZones);
   const table = useMemo(() => {
-    const columns = allColumns({ excludeRaveling, more, multiModel: models.length > 1 });
-    return wallAnalysisTable(t, rows, columns, { excludeRaveling, more, dateText: new Date().toLocaleDateString(locale) });
-  }, [t, rows, models.length, excludeRaveling, more, locale]);
+    const kindLabel = (k: WallKind) => t(`wallAnalysis.kind.${k}`);
+    const columns = allColumns({ excludeRaveling, more, multiModel: models.length > 1, kindLabel });
+    const described = [
+      ...(filter.kinds ? [t('wallAnalysis.setting.filterKinds', { kinds: WALL_KINDS.filter((k) => filter.kinds?.has(k)).map(kindLabel).join(', ') })] : []),
+      ...(filter.query.trim() ? [t('wallAnalysis.setting.filterQuery', { query: filter.query.trim() })] : []),
+    ];
+    return wallAnalysisTable(t, rows, columns, { excludeRaveling, more, dateText: new Date().toLocaleDateString(locale), filter: described });
+  }, [t, rows, models.length, excludeRaveling, more, locale, filter]);
 
   const exportAs = useCallback(async (format: ExportFormat) => {
     const names = [...new Set(rows.map((r) => stripExtension(r.modelName)))].join('-');
@@ -93,7 +109,7 @@ export function WallAnalysisPanel({ onClose }: WallAnalysisPanelProps) {
     : status.kind === 'noModel' ? t('wallAnalysis.noModel')
       : status.kind === 'noScene' ? t('wallAnalysis.noScene')
         : status.kind === 'error' ? t('wallAnalysis.failed', { message: status.message })
-          : status.kind === 'done' && rows.length === 0 ? t('wallAnalysis.noWalls')
+          : status.kind === 'done' && allRows.length === 0 ? t('wallAnalysis.noWalls')
             : null;
   const cellClass = (i: number): string => (table.columns[i].kind === 'text' ? 'text-left' : 'text-right tabular-nums');
 
@@ -111,8 +127,8 @@ export function WallAnalysisPanel({ onClose }: WallAnalysisPanelProps) {
       <div className="flex flex-wrap items-center gap-2 border-b p-3">
         <p className="w-full text-xs text-muted-foreground">{t('wallAnalysis.intro')}</p>
         <Button size="sm" onClick={run} disabled={running}>
-          {rows.length > 0 ? <RotateCcw className="mr-1 h-3.5 w-3.5" /> : <Play className="mr-1 h-3.5 w-3.5" />}
-          {rows.length > 0 ? t('wallAnalysis.recompute') : t('wallAnalysis.compute')}
+          {allRows.length > 0 ? <RotateCcw className="mr-1 h-3.5 w-3.5" /> : <Play className="mr-1 h-3.5 w-3.5" />}
+          {allRows.length > 0 ? t('wallAnalysis.recompute') : t('wallAnalysis.compute')}
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -145,6 +161,10 @@ export function WallAnalysisPanel({ onClose }: WallAnalysisPanelProps) {
           {t('wallAnalysis.modelWithoutZones', { model: m.modelName })}
         </p>
       ))}
+      {allRows.length > 0 && <WallKindFilter counts={counts} filter={filter} onChange={setFilter} />}
+      {allRows.length > 0 && rows.length === 0 && (
+        <p className="p-3 text-xs text-muted-foreground">{t('wallAnalysis.filter.none')}</p>
+      )}
       {rows.length > 0 && (
         <div className="flex-1 overflow-auto">
           <table className="w-full border-collapse text-xs">

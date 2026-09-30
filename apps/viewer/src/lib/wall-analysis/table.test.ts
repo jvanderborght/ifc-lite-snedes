@@ -30,7 +30,7 @@ function area(net: number): WallAreaResult {
 }
 
 function row(name: string, over: Partial<WallAnalysisRow> = {}): WallAnalysisRow {
-  return { modelId: 'm', modelName: 'model.ifc', wallId: 1, name, ifcType: 'IfcWall', nested: false, area: area(12), npr: npr(15.44, 1.8), timber: null, ...over };
+  return { modelId: 'm', modelName: 'model.ifc', wallId: 1, name, ifcType: 'IfcWall', nested: false, kind: 'exterior', kindSource: 'code', area: area(12), npr: npr(15.44, 1.8), timber: null, ...over };
 }
 
 const labels = (columns: string[]): WallTableLabels => ({
