@@ -7,7 +7,7 @@
  */
 
 import { useCallback } from 'react';
-import { ClassVisibility, CopyGuid, ElementTooltips, FocusSelected, HideSelected, IsolateSelected, Search, DisplayAll, Spatial, Class, Type, Material, Group } from '@/icons';
+import { ClassVisibility, CopyGuid, ElementTooltips, FocusSelected, HideSelected, IsolateSelected, Search, DisplayAll, Spatial, Class, Type, Material, Group, HsbZones } from '@/icons';
 import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { resolveGlobalId, useViewerStore, type HierarchyMode } from '@/store';
 import { executeBasketIsolate } from '@/store/basket/basketCommands';
@@ -180,6 +180,13 @@ export function ElementsTab() {
           tooltip={t('ribbon.elements.groupsTooltip')}
           active={hierarchyMode === 'groups'}
           onClick={() => handleHierarchyMode('groups')}
+        />
+        <RibbonLargeButton
+          icon={HsbZones}
+          label={t('ribbon.elements.hsbZones')}
+          tooltip={t('ribbon.elements.hsbZonesTooltip')}
+          active={hierarchyMode === 'hsb-zones'}
+          onClick={() => handleHierarchyMode('hsb-zones')}
         />
       </RibbonGroup>
       <RibbonGroupDivider />

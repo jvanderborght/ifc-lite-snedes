@@ -30,13 +30,14 @@ import type { CesiumPlacementDraft } from './cesiumSlice.js';
 export type ThemeMode = 'light' | 'dark' | 'colorful';
 export type { GeometryReloadReason } from './geometryLoadSettings.js';
 
-export type HierarchyMode = 'spatial' | 'type' | 'ifc-type' | 'material' | 'groups';
+/** `hsb-zones`: the hsbCAD zone list (pset Data, property Zone) instead of a tree. */
+export type HierarchyMode = 'spatial' | 'type' | 'ifc-type' | 'material' | 'groups' | 'hsb-zones';
 
 function getInitialHierarchyMode(): HierarchyMode {
   if (typeof window === 'undefined') return 'spatial';
   try {
     const stored = localStorage.getItem(HIERARCHY_MODE_STORAGE_KEY);
-    if (stored === 'spatial' || stored === 'type' || stored === 'ifc-type' || stored === 'material' || stored === 'groups') {
+    if (stored === 'spatial' || stored === 'type' || stored === 'ifc-type' || stored === 'material' || stored === 'groups' || stored === 'hsb-zones') {
       return stored;
     }
   } catch (err) {

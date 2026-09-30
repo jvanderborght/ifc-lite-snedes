@@ -144,6 +144,14 @@ export const hierarchyEn = {
   'hierarchy.panel.grouping.materialsTooltip': 'Materials',
   'hierarchy.panel.grouping.material': 'Material',
   'hierarchy.panel.grouping.groupsTooltip': 'Groups, systems and zones',
+  'hierarchy.panel.grouping.hsbZones': 'hsbCAD',
+  'hierarchy.panel.grouping.hsbZonesTooltip': 'hsbCAD zones (pset Data, property Zone): show or hide per zone',
+  'hierarchy.hsbZones.intro': 'Timber-frame parts per hsbCAD zone (pset Data, property Zone). Untick a zone to hide it; Show all brings it back.',
+  'hierarchy.hsbZones.zone': 'Zone {zone}',
+  'hierarchy.hsbZones.noZone': 'Without zone',
+  'hierarchy.hsbZones.showAll': 'Show all',
+  'hierarchy.hsbZones.hideAll': 'Hide all',
+  'hierarchy.hsbZones.empty': 'No hsbCAD zones in the loaded models (pset Data, property Zone).',
   'hierarchy.panel.grouping.groups': 'Groups',
 
   // HierarchyPanel: Groups-tab sub-filter chips
@@ -157,6 +165,7 @@ export const hierarchyEn = {
   'hierarchy.panel.sectionTitle.byClass': 'By Class',
   'hierarchy.panel.sectionTitle.byMaterial': 'By Material',
   'hierarchy.panel.sectionTitle.byGroup': 'By Group',
+  'hierarchy.panel.sectionTitle.hsbZones': 'hsbCAD zones',
   'hierarchy.panel.sectionTitle.byType': 'By Type',
   'hierarchy.panel.buildingStoreysTitle': 'Building Storeys',
 

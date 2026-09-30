@@ -115,6 +115,8 @@ export const ribbonToolbarEn = {
   'ribbon.elements.materialsTooltip': 'Displays materials of the model',
   'ribbon.elements.groups': 'Groups',
   'ribbon.elements.groupsTooltip': 'Displays groups of the model',
+  'ribbon.elements.hsbZones': 'hsbCAD zones',
+  'ribbon.elements.hsbZonesTooltip': 'Show or hide timber-frame parts per hsbCAD zone',
   'ribbon.elements.visibilityGroup': 'Visibility',
   'ribbon.elements.filter': 'Filter',
   'ribbon.elements.filterTooltip': 'Class visibility ({count} on)',

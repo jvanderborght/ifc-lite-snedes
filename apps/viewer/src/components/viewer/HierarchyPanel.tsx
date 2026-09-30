@@ -5,7 +5,9 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useTranslation } from '@/i18n';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Search, Building2, Layers, LayoutTemplate, FileBox, GripHorizontal, Palette, Network } from 'lucide-react';
+import { Search, Building2, Columns3, Layers, LayoutTemplate, FileBox, GripHorizontal, Palette, Network } from 'lucide-react';
+import { GroupingTabs } from './hierarchy/GroupingTabs';
+import { HsbZonesView } from './hierarchy/HsbZonesView';
 import type { IfcDataStore } from '@ifc-lite/parser';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -843,60 +845,7 @@ export function HierarchyPanel() {
 
   // Multi-model layout with resizable split
   // Grouping mode toggle component (shared by both layouts)
-  const groupingToggle = (
-    <div className="hierarchy-grouping-tabs flex gap-1 mt-2">
-      <Button
-        variant={groupingMode === 'spatial' ? 'default' : 'outline'}
-        size="sm"
-        className="h-6 text-[10px] flex-1 min-w-0 rounded-none uppercase tracking-wider"
-        onClick={() => setGroupingMode('spatial')}
-        title={t('hierarchy.panel.grouping.spatial')}
-      >
-        <Building2 className="h-3 w-3 shrink-0 panel-compact-icon" />
-        <span className="panel-compact-text">{t('hierarchy.panel.grouping.spatial')}</span>
-      </Button>
-      <Button
-        variant={groupingMode === 'type' ? 'default' : 'outline'}
-        size="sm"
-        className="h-6 text-[10px] flex-1 min-w-0 rounded-none uppercase tracking-wider"
-        onClick={() => setGroupingMode('type')}
-        title={t('hierarchy.panel.grouping.class')}
-      >
-        <Layers className="h-3 w-3 shrink-0 panel-compact-icon" />
-        <span className="panel-compact-text">{t('hierarchy.panel.grouping.class')}</span>
-      </Button>
-      <Button
-        variant={groupingMode === 'ifc-type' ? 'default' : 'outline'}
-        size="sm"
-        className="h-6 text-[10px] flex-1 min-w-0 rounded-none uppercase tracking-wider"
-        onClick={() => setGroupingMode('ifc-type')}
-        title={t('hierarchy.panel.grouping.type')}
-      >
-        <FileBox className="h-3 w-3 shrink-0 panel-compact-icon" />
-        <span className="panel-compact-text">{t('hierarchy.panel.grouping.type')}</span>
-      </Button>
-      <Button
-        variant={groupingMode === 'material' ? 'default' : 'outline'}
-        size="sm"
-        className="h-6 text-[10px] flex-1 min-w-0 rounded-none uppercase tracking-wider"
-        onClick={() => setGroupingMode('material')}
-        title={t('hierarchy.panel.grouping.materialsTooltip')}
-      >
-        <Palette className="h-3 w-3 shrink-0 panel-compact-icon" />
-        <span className="panel-compact-text">{t('hierarchy.panel.grouping.material')}</span>
-      </Button>
-      <Button
-        variant={groupingMode === 'groups' ? 'default' : 'outline'}
-        size="sm"
-        className="h-6 text-[10px] flex-1 min-w-0 rounded-none uppercase tracking-wider"
-        onClick={() => setGroupingMode('groups')}
-        title={t('hierarchy.panel.grouping.groupsTooltip')}
-      >
-        <Network className="h-3 w-3 shrink-0 panel-compact-icon" />
-        <span className="panel-compact-text">{t('hierarchy.panel.grouping.groups')}</span>
-      </Button>
-    </div>
-  );
+  const groupingToggle = <GroupingTabs mode={groupingMode} onChange={setGroupingMode} />;
 
   // Sub-filter chips for the Groups tab (#1622). Session-only; not persisted.
   const groupFilterChips = groupingMode === 'groups' ? (
@@ -1069,17 +1018,17 @@ export function HierarchyPanel() {
 
       {/* Section Header */}
       <SectionHeader
-        icon={groupingMode === 'spatial' ? Building2 : groupingMode === 'type' ? Layers : groupingMode === 'material' ? Palette : groupingMode === 'groups' ? Network : FileBox}
-        title={groupingMode === 'spatial' ? t('hierarchy.panel.sectionTitle.spatial') : groupingMode === 'type' ? t('hierarchy.panel.sectionTitle.byClass') : groupingMode === 'material' ? t('hierarchy.panel.sectionTitle.byMaterial') : groupingMode === 'groups' ? t('hierarchy.panel.sectionTitle.byGroup') : t('hierarchy.panel.sectionTitle.byType')}
-        count={filteredNodes.length}
+        icon={groupingMode === 'spatial' ? Building2 : groupingMode === 'type' ? Layers : groupingMode === 'material' ? Palette : groupingMode === 'groups' ? Network : groupingMode === 'hsb-zones' ? Columns3 : FileBox}
+        title={groupingMode === 'spatial' ? t('hierarchy.panel.sectionTitle.spatial') : groupingMode === 'type' ? t('hierarchy.panel.sectionTitle.byClass') : groupingMode === 'material' ? t('hierarchy.panel.sectionTitle.byMaterial') : groupingMode === 'groups' ? t('hierarchy.panel.sectionTitle.byGroup') : groupingMode === 'hsb-zones' ? t('hierarchy.panel.sectionTitle.hsbZones') : t('hierarchy.panel.sectionTitle.byType')}
+        count={groupingMode === 'hsb-zones' ? undefined : filteredNodes.length}
       />
 
       {/* Level display (Stacked / Exploded / Solo) + floorplan — only in the
           spatial view where storeys are the organising concept. */}
       {groupingMode === 'spatial' && <StoreyDisplayControls />}
 
-      {/* Tree */}
-      <div ref={parentRef} className="flex-1 overflow-auto scrollbar-thin bg-white dark:bg-black">
+      {/* Tree (the hsbCAD zone view is a flat checkbox list instead) */}
+      {groupingMode === 'hsb-zones' ? <HsbZonesView /> : <div ref={parentRef} className="flex-1 overflow-auto scrollbar-thin bg-white dark:bg-black">
         <div
           style={{
             height: `${virtualizer.getTotalSize()}px`,
@@ -1092,7 +1041,7 @@ export function HierarchyPanel() {
             return renderNode(node, virtualRow);
           })}
         </div>
-      </div>
+      </div>}
 
       {/* Footer status */}
       {hasActiveFilters ? (
