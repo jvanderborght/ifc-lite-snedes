@@ -21,6 +21,8 @@ describe('WORKSPACE_PANELS — sections panel registration', () => {
   });
 
   it('is appended, so the frozen Alt+N mapping of earlier panels is untouched', () => {
-    assert.equal(WORKSPACE_PANELS[WORKSPACE_PANELS.length - 1].id, 'sections');
+    // Appended after the last upstream panel; later fork panels (wall analysis) follow it.
+    const ids = WORKSPACE_PANELS.map((p) => p.id);
+    assert.ok(ids.indexOf('sections') > ids.indexOf('environment'));
   });
 });
