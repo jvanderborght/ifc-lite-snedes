@@ -103,7 +103,8 @@ export async function tekenSnedeDetail(
       });
     }
     if (vlak.diepte <= 0) return { lijnen, weggeknipt: { snede: 0, zicht: 0, verborgen: 0 } };
-    lijnen.push(...zichtlijnen(meshes, config, offsetMm, vlak.diepte, lijnen, opties));
+    // A loop, not push(...): tens of thousands of arguments overflow a browser worker's stack.
+    for (const l of zichtlijnen(meshes, config, offsetMm, vlak.diepte, lijnen, opties)) lijnen.push(l);
     return knipDubbeleLijnen(lijnen);
   } finally {
     generator.dispose();
