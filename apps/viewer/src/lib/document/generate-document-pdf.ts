@@ -8,6 +8,9 @@
  * the same jsPDF + svg2pdf + snapshot path the coordination report uses,
  * so a chart block prints exactly as it does in a report.
  */
+import { blockTitle } from './block-title.js';
+import { tableHeaderStyle } from '../table-header-style';
+import { comparisonSummary } from '../compare/savedComparisonSchema';
 import type { Aggregation } from '@ifc-lite/charts';
 import type { BCFTopic } from '@ifc-lite/bcf';
 import { REPORT_MARGIN } from '../export/report/compose.js';
@@ -17,6 +20,7 @@ import { renderTemplate, type BindingContext } from './bindings.js';
 import { composeDocument, estimateTextWidth, type DocumentLayout, type ResolvedBlock } from './compose.js';
 import { flattenExportModel, flattenRawModel, tableMessageKind, type TableLabels, type TableMessageKind, type TableState } from './resolve-table.js';
 import { TABLE_ROWS_DEFAULT, type DocumentSpec, type TableBlock } from './types.js';
+import { ringSvg } from '../validation/manual/ring.js';
 
 export interface DocumentPdfSeams extends ReportPdfSeams {
   /** Natural size of an image (data URL); the layout keeps its aspect ratio. */
@@ -53,6 +57,8 @@ export interface DocumentPdfResult {
   imageFailures: string[];
   /** Table blocks whose list did not run (no model, still resolving, or an error); the page says so in their place. */
   tableFailures: string[];
+  /** Refused filters and aggregation errors printed in the chart's place. */
+  chartFailures?: string[];
 }
 
 /** The English the PDF prints for a table block's rows, like every other string this module prints. */
@@ -75,12 +81,12 @@ export function tableMessage(state: TableState | undefined): string | null {
   // An engine error with an empty message (review finding) still has to read as an error, not as an empty grid.
   if (kind === 'error') return (state?.status === 'error' && state.message.trim()) || 'The list could not be run.';
   // "No rows" reads differently per source: a list matched nothing, a validation table's rule/rows filter did.
-  if (kind === 'no-rows') return state?.status === 'ok' && state.kind === 'validation' ? 'No rows match this rule.' : 'No rows match this list.';
+  if (kind === 'no-rows') return state?.status === 'ok' && state.kind === 'comparison' ? 'No changes in this saved comparison.' : state?.status === 'ok' && state.kind === 'validation' ? 'No rows match this rule.' : 'No rows match this list.';
   return TABLE_MESSAGES[kind];
 }
 
 /** The title a table block prints: its own, the list's name, or "Validation results". */
-export const tableTitle = (block: TableBlock): string => block.title?.trim() || (block.source.kind === 'list' ? block.source.list.name : 'Validation results');
+export const tableTitle = (block: TableBlock): string => blockTitle(block, (block.source.kind === 'list' ? block.source.list.name : block.source.kind === 'comparison' ? block.source.comparison.name : 'Validation results'), false);
 
 /** The browser's image measure: decode the data URL. */
 export function browserImageSize(dataUrl: string): Promise<{ w: number; h: number }> {
@@ -126,7 +132,7 @@ export async function resolveBlocks(input: DocumentPdfInput, imageSize: Document
       case 'text': {
         const rendered = renderTemplate(block.text, input.bindings);
         for (const b of rendered.bindings) if (!b.ok) result.unresolved.push(b.path);
-        blocks.push({ kind: 'text', id: block.id, style: block.style, text: rendered.text, font: block.font, fontSize: block.fontSize, width: block.width });
+        blocks.push({ ...block, text: rendered.text });
         break;
       }
       case 'image': {
@@ -137,7 +143,7 @@ export async function resolveBlocks(input: DocumentPdfInput, imageSize: Document
         } catch (err) {
           console.warn('[Documents] image could not be measured; printed square', err);
         }
-        blocks.push({ kind: 'image', id: block.id, height: block.height, align: block.align, caption: block.caption, aspect, width: block.width });
+        blocks.push({ kind: 'image', id: block.id, height: block.height, align: block.align, caption: block.caption, title: block.title, aspect, width: block.width });
         break;
       }
       case 'chart': {
@@ -148,26 +154,29 @@ export async function resolveBlocks(input: DocumentPdfInput, imageSize: Document
         // here ever read it.
         const message = input.chartMessages.get(block.id);
         const subtitle = message ?? (agg ? `${agg.categories.length} bucket${agg.categories.length === 1 ? '' : 's'} · ${agg.total.toLocaleString()} ${agg.spec.measure.agg === 'count' ? 'elements' : (agg.unit ?? '')}`.trim() : 'No data');
-        blocks.push({ kind: 'chart', id: block.id, title: block.chart.title, subtitle, hasData: !!agg && agg.categories.length > 0, snapshot: block.snapshot, height: block.height, width: block.width });
+        blocks.push({ kind: 'chart', id: block.id, title: blockTitle(block, block.chart.title), subtitle, hasData: !!agg && agg.categories.length > 0, snapshot: block.snapshot, height: block.height, width: block.width, fontSize: block.fontSize });
         break;
       }
+      case 'page-break': blocks.push(block); break;
       case 'spacer': {
         blocks.push({ kind: 'spacer', id: block.id, height: block.height });
         break;
       }
       case 'table': {
         const state = input.tables.get(block.id);
+        const headerStyle = block.headerBackground || block.headerTextColor
+          ? tableHeaderStyle(block.headerBackground, block.headerTextColor) : undefined;
         const message = tableMessage(state);
         if (state?.status === 'ok' && message === null) {
-          const flat = state.kind === 'validation'
+          const flat = state.kind === 'validation' || state.kind === 'comparison'
             ? flattenRawModel(state.model, block.maxRows ?? TABLE_ROWS_DEFAULT, TABLE_PDF_LABELS)
-            : flattenExportModel(state.model, block.maxRows ?? TABLE_ROWS_DEFAULT, TABLE_PDF_LABELS);
-          blocks.push({ kind: 'table', id: block.id, title: tableTitle(block), caption: block.caption, columns: flat.columns, rows: flat.rows });
+            : flattenExportModel(state.model, block.maxRows ?? TABLE_ROWS_DEFAULT, TABLE_PDF_LABELS, block.groupOrder);
+          blocks.push({ kind: 'table', id: block.id, title: tableTitle(block), caption: block.caption, headerStyle, summary: block.source.kind === 'comparison' ? comparisonSummary(block.source.comparison) : undefined, columns: flat.columns, rows: flat.rows });
           break;
         }
         if (state?.status !== 'ok') result.tableFailures.push(block.id);
         // `tableMessage` is non-null for every non-ok state; the fallback only satisfies the types.
-        blocks.push({ kind: 'table', id: block.id, title: tableTitle(block), caption: block.caption, message: message ?? 'No rows to print.', columns: [], rows: [] });
+        blocks.push({ kind: 'table', id: block.id, title: tableTitle(block), caption: block.caption, headerStyle, summary: block.source.kind === 'comparison' ? comparisonSummary(block.source.comparison) : undefined, message: message ?? 'No rows to print.', columns: [], rows: [] });
         break;
       }
       case 'ids-report': {
@@ -175,11 +184,16 @@ export async function resolveBlocks(input: DocumentPdfInput, imageSize: Document
         blocks.push({ ...block, kind: 'ids-report' });
         break;
       }
+      case 'manual-report': {
+        // Also a frozen snapshot (`manual-report.ts`, #6401).
+        blocks.push({ ...block, kind: 'manual-report' });
+        break;
+      }
       case 'topic': {
         const topic = input.topics.get(block.guid);
         if (!topic) {
           result.missingTopics.push(block.guid);
-          blocks.push({ kind: 'topic', id: block.id, title: `[BCF topic ${block.guid}: not among the loaded topics]`, lines: [], snapshotAspect: null });
+          blocks.push({ kind: 'topic', id: block.id, authoredTitle: !!blockTitle(block), title: blockTitle(block, `[BCF topic ${block.guid}: not among the loaded topics]`), lines: blockTitle(block) ? [`[BCF topic ${block.guid}: not among the loaded topics]`] : [], snapshotAspect: null });
           break;
         }
         let snapshotAspect: number | null = null;
@@ -193,7 +207,7 @@ export async function resolveBlocks(input: DocumentPdfInput, imageSize: Document
             snapshotAspect = 4 / 3;
           }
         }
-        blocks.push({ kind: 'topic', id: block.id, title: topic.title, lines: topicLines(topic), snapshotAspect });
+        blocks.push({ kind: 'topic', id: block.id, authoredTitle: !!blockTitle(block), title: blockTitle(block, topic.title), lines: topicLines(topic), snapshotAspect });
         break;
       }
     }
@@ -205,7 +219,12 @@ function drawHeaderFooter(doc: ReportDoc, layout: DocumentLayout, pageIndex: num
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(150);
-  doc.text(layout.header, REPORT_MARGIN, REPORT_MARGIN - 8);
+  if (layout.pageHeading) {
+    const heading = layout.pageHeading;
+    doc.setFont(heading.font, 'normal'); doc.setFontSize(heading.fontSize); doc.setTextColor(heading.textColor);
+    doc.text(heading.text, REPORT_MARGIN, heading.y);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(150);
+  } else doc.text(layout.header, REPORT_MARGIN, REPORT_MARGIN - 8);
   doc.text(layout.footer, REPORT_MARGIN, layout.size.h - REPORT_MARGIN + 12);
   doc.text(`Page ${pageIndex + 1} / ${layout.pages.length}`, layout.size.w - REPORT_MARGIN - 60, layout.size.h - REPORT_MARGIN + 12);
   doc.setTextColor(0);
@@ -232,7 +251,10 @@ function placeImage(doc: ReportDoc, dataUrl: string | null, label: string, box: 
 }
 
 export async function generateDocumentPdf(input: DocumentPdfInput, seams: DocumentPdfSeams): Promise<DocumentPdfResult> {
-  const result: DocumentPdfResult = { blob: new Blob(), pages: 0, unresolved: [], missingTopics: [], snapshotFailures: [], imageFailures: [], tableFailures: [] };
+  const result: DocumentPdfResult = { blob: new Blob(), pages: 0, unresolved: [], missingTopics: [], snapshotFailures: [], imageFailures: [], tableFailures: [],
+    chartFailures: input.document.blocks.flatMap((block) => block.kind === 'chart' && input.chartMessages.has(block.id)
+      ? [`${block.chart.title}: ${input.chartMessages.get(block.id)}`] : []),
+  };
   const format = input.document.page.size === 'A3' ? 'a3' : 'a4';
   const doc = await seams.createDoc(format, input.document.page.orientation);
   const blocks = await resolveBlocks(input, seams.imageSize, result);
@@ -244,7 +266,7 @@ export async function generateDocumentPdf(input: DocumentPdfInput, seams: Docume
     doc.setFontSize(size);
     return doc.textWidth(text);
   };
-  const layout = composeDocument({ name: input.document.name, page: input.document.page, blocks, generatedAt: seams.now().toLocaleString(), measure });
+  const layout = composeDocument({ name: input.document.name, pageHeading: input.document.pageHeading, page: input.document.page, blocks, generatedAt: seams.now().toLocaleString(), measure });
   const byId = new Map(input.document.blocks.map((b) => [b.id, b]));
   const topicsByBlock = new Map(input.document.blocks.filter((b) => b.kind === 'topic').map((b) => [b.id, input.topics.get((b as { guid: string }).guid)]));
 
@@ -256,9 +278,13 @@ export async function generateDocumentPdf(input: DocumentPdfInput, seams: Docume
         case 'text':
           doc.setFont(item.font ?? 'helvetica', item.bold ? 'bold' : 'normal');
           doc.setFontSize(item.size);
-          doc.setTextColor(item.gray);
+          doc.setTextColor(item.color ?? item.gray);
           doc.text(item.text, item.x, item.y);
           doc.setTextColor(0);
+          break;
+        case 'rect':
+        case 'text-background':
+          doc.fillRect(item.x, item.y, item.w, item.h, item.color);
           break;
         case 'image': {
           const block = byId.get(item.blockId);
@@ -268,7 +294,8 @@ export async function generateDocumentPdf(input: DocumentPdfInput, seams: Docume
         case 'chart': {
           const agg = input.aggregations.get(item.blockId);
           if (agg && agg.categories.length > 0) {
-            await doc.svg(seams.renderSvg(agg, item.w, item.h, seams.theme), item.x, item.y, item.w, item.h);
+            const block = byId.get(item.blockId);
+            await doc.svg(seams.renderSvg(agg, item.w, item.h, seams.theme, block?.kind === 'chart' ? block.fontSize : undefined), item.x, item.y, item.w, item.h);
           } else {
             doc.setFontSize(9);
             doc.setTextColor(130);
@@ -304,6 +331,10 @@ export async function generateDocumentPdf(input: DocumentPdfInput, seams: Docume
           }
           break;
         }
+        case 'ring':
+          // Colour lives only in the ring; its counts are printed beside it in words (#6401).
+          await doc.svg(ringSvg(item.counts, item.size), item.x, item.y, item.size, item.size);
+          break;
         case 'topic-snapshot': {
           const topic = topicsByBlock.get(item.blockId);
           placeImage(doc, topic ? topicSnapshotDataUrl(topic) : null, topic ? `viewpoint of "${topic.title}"` : 'viewpoint', item, result);
@@ -318,6 +349,7 @@ export async function generateDocumentPdf(input: DocumentPdfInput, seams: Docume
             body: item.rows.map((r) => r.cells),
             columns: item.columns.map((c) => ({ width: c.width, align: c.align })),
             rowRoles: item.rows.map((r) => r.role),
+            headerStyle: item.headerStyle,
           });
           break;
       }

@@ -64,6 +64,17 @@ The bridge mirrors IfcOpenShell `ifctester` semantics (classification sub-refere
 
 Other options in `ValidatorOptions`: `translator` (see below), `includePassingEntities` (default `true`), and `yieldEveryMs` to keep the thread responsive on large models.
 
+### Understanding the viewer summary
+
+The viewer shows two different units:
+
+- **Requirement checks** count each applicable entity's individual requirements, matching IFC Tester's checks summary. A requirement passes overall when none of its applicable entities fails it; a required specification with no matching entities fails its requirements.
+- **Entity–specification results** count each entity once per applicable specification. An entity passes that specification only when all its requirements pass. The same entity can be counted again under another specification. These are the counts in `report.summary.totalEntitiesChecked`, `totalEntitiesPassed`, and `totalEntitiesFailed`.
+
+For example, if two walls each have two requirements and one wall fails one requirement, three of four requirement checks pass (75%), but only one of two entity–specification results passes (50%). Specification cardinality failures still fail the delivery even when individual requirement checks pass. An empty check population displays no evaluated checks.
+
+Both percentages use IFC Lite's shared rounding policy: partial results stay between 1% and 99%, so 0% means nothing passed and 100% means everything passed. IFC Tester floors percentages and can therefore show 0% for a small nonzero passing count. Capped or unevaluable reports do not show an aggregate requirement-check summary.
+
 ### Custom Data Sources
 
 If your IFC data does not come from `@ifc-lite/parser`, implement the `IFCDataAccessor` interface yourself. It requires `getAllEntityIds`, `getEntitiesByType`, `getEntityType`, `getEntityName`, `getGlobalId`, `getDescription`, `getObjectType`, `getPropertyValue`, `getPropertySets`, `getClassifications`, `getMaterials`, `getParent`, and `getAttribute`, plus optional methods (`getAncestors`, `getAttributeNames`, `getAttributeXsdTypes`, `getPredefinedTypeRaw`) that improve spec fidelity when provided.
@@ -140,7 +151,9 @@ out of scope, and is called out as such:
 | Schedules, load time, CDE revision, as-built status | Out of scope — not model data |
 | Units per property ("Width recorded in mm") | Covered: `unit` requirement kind — a property/quantity value's explicit unit, else the project unit for its measure type (#5300) |
 | Georeferencing (`IfcMapConversion`, CRS), project units, header fields | Covered: a `modelFact` rule/subject (`georef.crs`, `georef.eastings`, `units.length`, `header.author`, …) that every value operator works on, read from the element's model (#5442) |
-| Complex properties, `IfcPropertyReferenceValue` | Deferred — reads as `present:false` (absent) |
+| List, enumerated and table values | Covered: an element rule matches ANY member / cell, as IDS does for lists and tables; a negated op (`ne`, `notContains`, `notMatches`) holds only when NO member has the value (#5475) |
+| `IfcPropertyReferenceValue` | Covered: reads as the referenced object's `Name`, else its `Identification`, else `#<id>` (still present) (#5475) |
+| Complex properties (`IfcComplexProperty`) | Covered: `memberPath: ['Frame', 'Width']` on a property rule or subject reads one member by name, one entry per nesting level (names compare case-insensitively); without it the property reads as its members' joined text. A missing member is absent. No IDS facet can address a member, so export refuses such a rule. A server-parsed model (no source bytes) carries no member breakdown, so there a `memberPath` rule reads as absent (#5475) |
 | Negation / exceptions in applicability | Covered: `ne`/`notIn`/`notContains`/`notMatches`/`isNotSet`, OR-ed groups |
 | OR logic in requirements | Covered: an `element` requirement is a `RuleBlock` with OR-ed groups |
 | Value-to-value comparison (`WarrantyEnd > WarrantyStart`) | Covered: `compare` requirement kind (number or date) |
@@ -156,7 +169,7 @@ out of scope, and is called out as such:
 sets take a single, deliberately stricter position everywhere: a value is
 `present` iff at least one candidate, after `String(v).trim()`, is
 non-empty. An empty `IFCLABEL`, whitespace-only text, `$`,
-`IfcPropertyReferenceValue`, and complex properties are all **absent**, not
+and an `IfcPropertyReferenceValue` that references nothing are all **absent**, not
 present-with-an-empty-value. Consequence: `exists`/`isSet` fails on `""`,
 and `ne` on an absent property FAILS rather than vacuously passing — a rule
 requiring `FireRating ne '2HR'` does not pass just because `FireRating` was
@@ -202,6 +215,7 @@ other rule is refused with each reason listed:
 - `caseSensitive: false`, a non-default `tolerance`, or `severity: 'warning'`
 - `model` / `modelTag` targeting
 - storey, elevation, relating-type and parent-name conditions
+- a complex-property member (`memberPath`), which no IDS facet can address
 - a classification code/name value (the rule matches code OR name, IDS only the code)
 - a regex that uses JavaScript-only syntax
 - applicable-count bounds IDS 1.0 can't state
@@ -252,6 +266,17 @@ In the IFClite viewer, IDS validation is integrated through the Data validation 
 5. **Filter** - Show all entities, only failed, or only passed
 6. **Navigate** - Click a failed entity to zoom to it in 3D
 7. **Export BCF** - Turn validation failures into BCF topics (see [BCF](bcf.md#ids-validation-reports-as-bcf))
+8. **Re-run** - After editing the model, the header's Re-run button repeats the check with the same IDS against the same model the report describes. **Clear results** returns to the pre-run card and keeps the IDS loaded; **Unload IDS** removes both
+
+No `.ids` file to hand? With no model of your own open, the empty panel's **Try with demo data** loads the demo project and the IDS written for it.
+
+Checks do not automatically create saved reports. To keep a completed IDS or information-validation result, choose **Save report** in its results toolbar. **Saved reports** holds the evidence from that run, including its evaluated model names and fingerprints. The same result can be saved once; later runs can be saved separately. Unsaved results last only for the current session and are replaced by a later completed run or cleared with the results.
+
+### Manual validation
+
+Some checks are done by eye rather than by a rule: the model was uploaded to the CDE on time, objects sit on the right storey. The Data validation panel's third tab, **Manual validation**, holds a checklist of groups of such checks. Each check takes **Pass**, **Fail** or **Warning** and an optional comment; a check with no verdict shows as **Not checked**. Each group has a ring chart and there is an overall ring; a warning is counted on its own and never as a pass.
+
+**Edit checklist** adds, renames, reorders and deletes groups and checks. **Save .checklist.json** downloads the structure only (never the answers), so one file can be reused on every model; **Open .checklist.json** and **Recent checklists** load one back. Answers are stored in the browser per model, keyed by the model file's identity, so they come back when the same file is loaded again; with several models loaded, a picker chooses which one is being checked. Manual results are kept apart from IDS and information-validation reports and never replace them. To put them in a report, add a **Manual validation report** block to a [document](documents.md).
 
 Validation runs in a Web Worker so the UI stays responsive during large runs, with an automatic fallback to in-process validation if the worker is unavailable.
 
@@ -274,3 +299,14 @@ Validation runs in a Web Worker so the UI stays responsive during large runs, wi
 | `IDSConstraint` | Simple, Pattern, Enumeration, or Bounds value matcher |
 | `IDSValidationReport` | Complete validation results with per-entity details |
 | `IDSEntityResult` | Pass/fail result for a single entity with failure details |
+
+
+## Saved workflows and retained reports
+
+[Session automation](flow.md#file-slots-reports-and-portability) can run several
+enabled IDS or information-validation jobs over explicitly selected models and
+retain each completed native report. IDS evaluates each target model separately:
+a job targeting several models produces adjacent model reports rather than a
+merged fictitious IFC model or an averaged pass rate. Information rule sets
+evaluate their targeted federation as one job. Validation uses current effective
+property/entity edits, preserving the same native evaluator semantics.

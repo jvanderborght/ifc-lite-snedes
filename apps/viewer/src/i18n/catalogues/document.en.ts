@@ -17,6 +17,18 @@
 import type { TranslationValue } from '../types';
 
 export const documentEn = {
+  'document.pageHeading.label': 'Page heading',
+  'document.pageHeading.text': 'Page heading text',
+  'document.pageHeading.font': 'Page heading font',
+  'document.pageHeading.size': 'Page heading size',
+  'document.pageHeading.color': 'Page heading colour',
+  'document.pageHeading.resetColor': 'Reset page heading colour',
+  'document.pageHeading.reset': 'Reset page heading',
+  'document.block.tableSourceComparison': 'Saved comparison',
+  'document.block.comparisonPicker': 'Choose saved comparison for document',
+  'document.block.comparisonSnapshotHint': 'This document embeds a copy of the completed report. Renaming or deleting its saved comparison does not change this copy.',
+  'document.table.comparisonNoRows': 'No changes in this saved comparison.',
+
   'document.block.widthLabel': 'Width',
   'document.block.widthAriaLabel': 'Block width',
   'document.block.widthTitle': 'Half pairs with the next half text, chart, or image into one row',
@@ -36,6 +48,11 @@ export const documentEn = {
   'document.block.fontSizeLabel': 'Size (pt)',
   'document.block.fontSizeAriaLabel': 'Text size',
   'document.block.fontSizeDefault': 'Style default',
+  'document.block.textColorLabel': 'Text colour',
+  'document.block.backgroundColorLabel': 'Background colour',
+  'document.block.textColorReset': 'Reset text colour',
+  'document.block.backgroundColorReset': 'Clear background colour',
+  'document.block.colorReset': 'Reset',
 
   // BlockEditor.tsx (#4918 doc slice): the block-kind badge, and every
   // field/control each block kind renders.
@@ -54,6 +71,7 @@ export const documentEn = {
   'document.block.insertFieldTitle': 'Insert a {path} that reads the model',
   'document.block.textAriaLabel': 'Block text',
   'document.block.textPlaceholder': 'Text; {IfcProject.Name} reads the model',
+  'document.block.textKeysHint': 'Enter: new line · Tab: indent (Shift+Tab: outdent) · Esc, then Tab: leave the text box',
   'document.block.moveUpAriaLabel': 'Move block up',
   'document.block.moveDownAriaLabel': 'Move block down',
   'document.block.removeAriaLabel': 'Remove block',
@@ -72,6 +90,9 @@ export const documentEn = {
   'document.block.chartSelectTitle': 'Copy a chart from one of the saved dashboards',
   'document.block.chartReplaceOption': '{title} — replace with…',
   'document.block.chartSnapshotLabel': '3D snapshot',
+  'document.block.chartFontSizeLabel': 'Text size',
+  'document.block.chartFontSizeAriaLabel': 'Chart text size',
+  'document.block.chartFontSizeReset': 'Reset chart text size',
   'document.block.topicSourceLabel': 'Topic',
   'document.block.topicNotLoaded': '{guid} (not loaded)',
   'document.block.pickTopicOption': 'Pick a topic…',
@@ -88,6 +109,14 @@ export const documentEn = {
   'document.addBlock.button': 'Add block',
   'document.addBlock.buttonTitle': 'Add a block to the page',
   'document.addBlock.spacer': 'Spacer',
+  'document.addBlock.pageBreak': 'Page break',
+  'document.block.kindPageBreak': 'Page break',
+  'document.block.fieldSourceLabel': 'Source',
+  'document.block.fieldSourceAriaLabel': 'Field source model',
+  'document.block.fieldSourceDefault': 'Default source',
+  'document.block.fieldSourceDuplicate': 'duplicate name',
+  'document.block.fieldSourceDuplicateTitle': 'Use distinct model names to bind a field to one model.',
+  'document.preview.sectionLabel': 'Document section {section}',
 
   // DocumentPanel.tsx (#4918 doc slice): the panel's own header controls,
   // export action, empty state, and the toasts its export/save flow raises.
@@ -102,7 +131,6 @@ export const documentEn = {
   'document.panel.exportTitle': 'Print this page to a PDF',
   'document.panel.exportBusy': 'Exporting…',
   'document.panel.exportIdle': 'Export PDF',
-  'document.panel.closeAriaLabel': 'Close document panel',
   'document.panel.emptyBlocks': 'No blocks yet — "Add block" above.',
   'document.panel.unsavedWarning':
     'The document could not be saved in this browser (storage blocked or full). Export it as a template before you reload.',
@@ -136,6 +164,10 @@ export const documentEn = {
     one: '{countDisplay} table not printed',
     other: '{countDisplay} tables not printed',
   },
+  'document.panel.problemCharts': {
+    one: '{countDisplay} chart not printed',
+    other: '{countDisplay} charts not printed',
+  },
 
   // DocumentPreview.tsx (#4918 doc slice): empty-state and unresolved-topic
   // messages the rendered page itself shows.
@@ -160,8 +192,15 @@ export const documentEn = {
   'document.block.tableEditInLists': 'Edit in Lists',
   'document.block.tableEditInListsHint': 'Opened in the Lists panel — save there, then "Update from saved list" here.',
   'document.block.tableSelectionDropped': 'The selection this list was made from is not kept in a document: the table prints every element the list\'s classes and conditions match.',
+  'document.block.titleAriaLabel': 'Block title',
+  'document.block.titlePlaceholder': 'Title (leave empty for the original heading)',
   'document.block.tableTitleAriaLabel': 'Table title',
   'document.block.tableCaptionAriaLabel': 'Table caption',
+  'document.block.tableOrderLabel': 'Group order',
+  'document.block.tableHeaderBackground': 'Header background',
+  'document.block.tableHeaderReset': 'Reset table header background',
+  'document.block.tableHeaderTextColor': 'Header text',
+  'document.block.tableHeaderTextReset': 'Reset table header text color',
   'document.block.tableRowsLabel': 'Rows',
   'document.block.tableRowsAriaLabel': 'Rows to print before "… n more rows"',
   'document.block.tableSummary': '{columns} columns · {view}',
@@ -185,8 +224,13 @@ export const documentEn = {
   // the table block's structure, with per-rule rows under each check.
   'document.block.kindIdsReport': 'IDS report',
   'document.addBlock.idsReport': 'IDS validation report',
-  'document.addBlock.idsReportDisabledTitle': 'Run an IDS validation first',
+  'document.addBlock.idsReportDisabledTitle': 'Run an IDS or information validation first',
   'document.block.idsReportSourceLabel': 'Source',
+  'document.block.idsReportVariantLabel': 'Layout',
+  'document.block.idsReportVariantAriaLabel': 'IDS report layout',
+  'document.block.idsReportVariantClassic': 'Classic',
+  'document.block.idsReportVariantCompact': 'Compact (bars)',
+  'document.block.idsReportVariantLong': 'Long (full text)',
   'document.block.idsReportRefresh': 'Refresh from current validation report',
   'document.block.idsReportRefreshDisabledTitle': 'Run an IDS validation first',
   'document.block.idsReportRefreshed': 'Refreshed from the current validation report',
@@ -200,7 +244,31 @@ export const documentEn = {
     other: '{countDisplay} checks',
   },
   'document.preview.idsReportNoChecks': 'No checks in this report.',
+  'document.preview.idsReportCountsUnavailableShort': 'n/a',
   'document.preview.idsReportCountsUnavailable': 'Counts unavailable in this partial report',
+
+  // Information-validation report (#6372): the same block over a rule-set run. The block's
+  // `sourceKind` picks the label, refresh only accepts a report of the same kind, and the
+  // rule engine's extra detail (severity, set rows, cardinality, errors) is shown.
+  'document.block.kindRulesReport': 'Information validation report',
+  'document.addBlock.rulesReport': 'Information validation report',
+  'document.block.rulesReportRefreshDisabledTitle': 'Run an information validation first',
+  'document.preview.idsReportHeading': 'IDS report: {name}',
+  'document.preview.rulesReportHeading': 'Information validation report: {name}',
+  'document.preview.idsReportWarnings': 'Warnings',
+  'document.preview.idsReportWarningTag': 'Warning',
+  'document.preview.idsReportError': 'Could not be evaluated: {error}',
+  'document.preview.idsReportCardinality': 'Applicable elements',
+  'document.preview.idsReportCardinalityFound': 'Found {actual}',
+  'document.preview.idsReportCardinalityExactly': 'expected exactly {min}',
+  'document.preview.idsReportCardinalityRange': 'expected {min} to {max}',
+  'document.preview.idsReportCardinalityAtLeast': 'expected at least {min}',
+  'document.preview.idsReportCardinalityAtMost': 'expected at most {max}',
+  'document.preview.idsReportCardinalityMet': 'Met',
+  'document.preview.idsReportCardinalityNotMet': 'Not met',
+  'document.preview.idsReportSetCounts': '{actual} · expected {expected}',
+  'document.preview.idsReportBlankGroup': '(blank)',
+  'document.preview.idsReportSetsTruncated': 'More sets exist than the validation run kept.',
 
   // Validation-results table source (#5138): ValidationSourceEditor in TableBlockEditor.tsx, and
   // the placeholder states TablePreview.tsx shows in place of rows.

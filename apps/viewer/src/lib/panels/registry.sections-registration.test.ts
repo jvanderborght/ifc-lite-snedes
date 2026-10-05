@@ -16,7 +16,7 @@ describe('WORKSPACE_PANELS — sections panel registration', () => {
   it('registers a sections entry in the right pane', () => {
     const entry = WORKSPACE_PANELS.find((p) => p.id === 'sections');
     assert.notEqual(entry, undefined, "WORKSPACE_PANELS is missing the 'sections' panel definition");
-    assert.equal(entry?.title, 'Sections');
+    assert.equal(entry?.titleKey, 'sectionsPanel.title');
     assert.equal(entry?.region, 'side');
   });
 

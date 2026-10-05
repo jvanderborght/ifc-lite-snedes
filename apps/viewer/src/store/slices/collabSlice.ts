@@ -15,14 +15,10 @@
  *   - session lifecycle (`startCollab` / `stopCollab`),
  *   - status + presence subscriptions feeding the store.
  *
- * What it deliberately stubs for later milestones (TODOs inline):
- *   - `seedFromStep` model seeding into the Y.Doc (plan §4.2, M1),
- *   - mutation binding + remote→local apply (plan §7.5, M2),
- *   - presence overlay mounting in the viewport (plan §7.4 — done at mount
- *     time in the viewport component, not here).
  */
 
 import type { StateCreator } from 'zustand';
+import { attachRoomSpatialContextMirror } from '@/lib/collab/room-spatial-context-mirror';
 // IMPORTANT: only *type* imports from '@ifc-lite/collab' at module scope. The
 // collab runtime (yjs, automerge, providers) is heavy and must stay out of the
 // main bundle so the feature ships dark — it is lazy-imported inside
@@ -40,6 +36,7 @@ import type { PropertyValueType } from '@ifc-lite/data';
 import type { ViewerState } from '../index.js';
 import { collabServerUrl } from '@/lib/collab/config';
 import {
+  applyIdentityPatch,
   loadOrCreateIdentity,
   persistIdentity,
   type EphemeralIdentity,
@@ -96,9 +93,8 @@ export type CollabRole = 'viewer' | 'commenter' | 'editor' | 'admin';
 
 /**
  * The single role -> edit rule. `canCollabEdit()` below is its store-bound
- * form, and components that mirror the same gate in their own UI
- * (`BulkPropertyEditor`, `DataConnector`) call this directly off `collabRole`.
- * Keeping one body means a future role change cannot drift the copies apart.
+ * form. The shared mutation permission selector calls that store-bound form,
+ * so Bulk, CSV, Properties, and script authoring share the same role rule.
  * `null` = not in a shared room, so the local single-user editing rules apply
  * (handled by the UI's existing `editEnabled` gate) and this returns true.
  */
@@ -335,13 +331,14 @@ export interface CollabSlice {
     mesh: MeshData | null, initialAttributes?: Record<string, unknown>, sourceExpressId?: number,
   ) => void;
   /**
-   * Mirror a geometry-shape change (resize) by replacing the entity's room
-   * geometry with a freshly-tessellated `mesh` blob (built at the new world
-   * position, so it carries the new size + placement). Resets the entity's
-   * placement baseline to identity for the new blob. No-op without a session
-   * or edit rights.
+   * Mirror a geometry change by replacing the entity's room geometry with its
+   * freshly-tessellated meshes (a re-meshed element can have several, one per
+   * material layer, #6232), baked at the entity's current world position so
+   * they carry the new shape + placement. Resets the entity's placement
+   * baseline to identity for the new blob. No-op without a session, edit
+   * rights or meshes.
    */
-  mirrorEntityGeometry: (modelId: string, entityId: number, mesh: MeshData) => void;
+  mirrorEntityGeometry: (modelId: string, entityId: number, meshes: readonly MeshData[]) => void;
   // ── Annotation mirror (collab markup) — called by annotationsSlice after a
   //    local create/edit/delete. No-ops without a session or comment permission.
   mirrorAnnotationUpsert: (annotation: Annotation) => void;
@@ -508,7 +505,7 @@ let remoteApplyTeardown: (() => void) | null = null;
 // Teardown for the recipient's live re-reconstruction observer.
 let recipientLiveTeardown: (() => void) | null = null;
 
-export const createCollabSlice: StateCreator<ViewerState, [], [], CollabSlice> = (set, get) => ({
+export const createCollabSlice: StateCreator<ViewerState, [], [], CollabSlice> = (set, get, api) => ({
   // Initial state
   collabSession: null,
   collabStatus: 'disconnected',
@@ -529,12 +526,11 @@ export const createCollabSlice: StateCreator<ViewerState, [], [], CollabSlice> =
   collabGeometryNotice: null,
 
   setCollabPanelVisible: (collabPanelVisible) => set({ collabPanelVisible }),
-
   setCollabIdentity: (patch) => {
-    const next: EphemeralIdentity = { ...get().collabIdentity, ...patch };
+    const next = applyIdentityPatch(get().collabIdentity, patch);
+    if (!next) return;
     persistIdentity(next);
     set({ collabIdentity: next });
-    // Reflect the rename into a live session's presence immediately.
     const session = get().collabSession;
     if (session) {
       const user: UserIdentity = { id: next.id, name: next.name, color: next.color };
@@ -854,7 +850,7 @@ export const createCollabSlice: StateCreator<ViewerState, [], [], CollabSlice> =
       console.warn('[collab] rejected remote write:', rejected);
       set({ collabGeometryNotice: `A collaborative edit could not be applied: ${rejected}` });
     };
-    remoteApplyTeardown = attachRemoteApply(docApi!, session, (path) => roomEntityTargetForPath(get(), path), {
+    const detachRemoteApply = attachRemoteApply(docApi!, session, (path) => roomEntityTargetForPath(get(), path), {
       // Consulted by the bridge's single tombstone guard before any write (#5187).
       isLocallyDeleted: (modelId, entityId) => roomMutationViewFor(get(), modelId)?.isDeleted(entityId) ?? false,
       onRejectedWrite: rejectRemoteWrite,
@@ -927,6 +923,9 @@ export const createCollabSlice: StateCreator<ViewerState, [], [], CollabSlice> =
         set((s) => ({ mutationVersion: s.mutationVersion + 1 }));
       },
     });
+
+    const detachSpatial = attachRoomSpatialContextMirror(api, session);
+    remoteApplyTeardown = () => { detachRemoteApply(); detachSpatial(); };
 
     // Annotation (markup) sync: reflect peers' pins into the local slice, and
     // seed our existing local pins into the room ("share existing + new").
@@ -1261,11 +1260,11 @@ export const createCollabSlice: StateCreator<ViewerState, [], [], CollabSlice> =
     }
   },
 
-  mirrorEntityGeometry: (modelId, entityId, mesh) => {
+  mirrorEntityGeometry: (modelId, entityId, meshes) => {
     // Room model only — see `mirrorPlacementEdit`.
     const session = get().collabSession;
     const store = roomStoreFor(get(), modelId);
-    if (!session || !store || !geomApiRef || !makeBlobStore) return;
+    if (!session || !store || !geomApiRef || !makeBlobStore || meshes.length === 0) return;
     if (!get().canCollabEdit()) return;
     const path = pathForEntity(store, entityId);
     if (!path) return;
@@ -1280,7 +1279,7 @@ export const createCollabSlice: StateCreator<ViewerState, [], [], CollabSlice> =
     void (async () => {
       try {
         cachedBlobStore = cachedBlobStore ?? (await makeBlobStore!());
-        const report = await seedGeometryToRoom(geom, session, cachedBlobStore, [mesh], () => path, {
+        const report = await seedGeometryToRoom(geom, session, cachedBlobStore, meshes, () => path, {
           replace: true,
         });
         if (report.seeded === 0) {

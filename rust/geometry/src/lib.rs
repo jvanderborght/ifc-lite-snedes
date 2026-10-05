@@ -75,7 +75,16 @@
 // wiring; external consumers reach its types through the root-level `pub use`
 // re-exports below, so those modules are `pub(crate)` (see #C3.2).
 pub(crate) mod alignment;
+pub(crate) mod alignment_arc_length;
+pub(crate) mod alignment_axis;
+mod alignment_sampling;
+mod alignment_sampling_curve;
+mod alignment_sampling_placement;
 pub mod analytic;
+mod curve_source;
+mod trimmed_curve;
+pub(crate) mod gradient;
+pub(crate) mod curve_segment;
 pub(crate) mod bool2d;
 /// General 2D booleans over contour sets (union/difference/intersection),
 /// keeping every disjoint output shape. Distinct from `bool2d`, which is the
@@ -108,6 +117,9 @@ pub mod mesh_weld;
 /// Structured-diagnostics macro shims for the `observability` feature
 /// (tracing when ON, the legacy eprintln fallback when OFF).
 pub(crate) mod diag;
+#[cfg(feature = "opening-perf-trace")]
+#[doc(hidden)]
+pub mod opening_perf_trace;
 pub(crate) mod diagnostics;
 pub(crate) mod error;
 pub(crate) mod geom_hash;
@@ -197,8 +209,8 @@ pub use geom_hash::{
 pub use extrusion::{extrude_profile, extrude_profile_lofted, extrude_profile_with_voids};
 pub use instancing::{
     bake_source_at_world, collate_and_encode, collate_instances, collate_refs,
-    collate_refs_in_basis, collate_refs_verified_in, compose_instance_world_row_major, decode_instanced,
-    encode_instanced, encode_refs, instance_rel_row_major_f32, verify_recomposition, Collated,
+    collate_refs_in_basis, collate_refs_verified_in, compose_instance_world_row_major, decode_instance_finishes, decode_instanced,
+    encode_instanced, encode_refs, encode_refs_with_finishes, instance_rel_row_major_f32, verify_recomposition, Collated,
     DecodedInstance, DecodedInstanced, DecodedTemplate, InstanceMeshRef, InstanceOccurrence,
     InstanceTemplate, INSTANCED_MAGIC, INSTANCED_VERSION,
 };
@@ -215,7 +227,17 @@ pub use processors::{
     SweptDiskSolidProcessor, TriangulatedFaceSetProcessor,
 };
 pub use alignment::{AlignmentCurve, AlignmentFrame};
-pub use analytic::{extract_swept_disk, AnalyticCurveSegment, AnalyticStatus, AnalyticSweptDisk};
+pub use alignment_axis::locate_axis_curve;
+pub use alignment_sampling::{
+    sample_alignment_axes, AlignmentAxis, AlignmentSample, AlignmentSamplingDiagnostic,
+    AlignmentSamplingDiagnosticCode, AlignmentSamplingOptions, AlignmentSamplingReport,
+    SampledAlignmentAxis,
+};
+pub use analytic::{
+    extract_analytic_extrusion, extract_analytic_profile, extract_swept_disk,
+    AnalyticCurveSegment, AnalyticExtrusion, AnalyticProfile, AnalyticProfileLoop,
+    AnalyticStatus, AnalyticSweptDisk, ProfileLoopKind,
+};
 pub use profile::{Profile2D, Profile2DWithVoids, ProfileType, VoidInfo};
 pub use profile_extractor::{extract_profiles, extract_profiles_with_diagnostics, ExtractedProfile};
 pub use profile_skip::SkippedProfile;

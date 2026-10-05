@@ -35,10 +35,24 @@
  * property-writing graph (like the shipped fire-rating-audit example) runs
  * fine; a column-authoring graph will report a failed node until that
  * backend gap is closed separately.
+ *
+ * `run_flow` is the OTHER caller (besides `ifc-lite flow run`) allowed to
+ * read `process.env` for a flow graph (#5167 phase 3.5), following the same
+ * shared `@ifc-lite/flow-nodes` `secrets.ts` pipeline the CLI uses:
+ * `validateSecretReferences` runs before anything else touches the graph
+ * (an undeclared or unset `{{secret:NAME}}` is a `ToolExecutionError`, not a
+ * silent empty string), `interpolateSecrets` substitutes into a throwaway
+ * document, and `redactDeep` scrubs the whole tool result — outputs, logs,
+ * errors — right before it crosses the MCP response boundary, so a secret
+ * that comes back inside a response body a node fetched is still caught.
+ * `networkGrants` is always the graph's own declared `network.fetch:<host>`
+ * capabilities, independent of the (absent, here) general capability gate —
+ * see `FlowHost.networkGrants`'s doc comment.
  */
 
 import { readFile } from 'node:fs/promises';
 import {
+  checkAvailability,
   declaredInputKeys,
   describeFlowIO,
   migrateFlowDocument,
@@ -53,7 +67,18 @@ import {
   type RunResult,
   type Table,
 } from '@ifc-lite/flow';
-import { createStandardRegistry, headlessFeatures, type FlowHost } from '@ifc-lite/flow-nodes';
+import { parseCapabilities } from '@ifc-lite/extensions';
+import {
+  buildRedactionMap,
+  createStandardRegistry,
+  headlessFeatures,
+  interpolateSecrets,
+  redactDeep,
+  resolveSecretValues,
+  usableSecretNames,
+  validateSecretReferences,
+} from '@ifc-lite/flow-nodes';
+import { createMcpFlowHost } from './flow-host.js';
 import type { Tool } from './types.js';
 import { okResult, paginate, resolveModel } from './util.js';
 import { ToolErrorCode, ToolExecutionError } from '../errors.js';
@@ -120,12 +145,14 @@ const describeFlow: Tool = {
     // validating clean and producing nothing at run time.
     const diagnostics = validateFlowWiring(doc, registry);
     const io = describeFlowIO(doc, registry);
-    const ok = diagnostics.length === 0;
+    const availability = checkAvailability(doc, registry, headlessFeatures(usableSecretNames(process.env)));
+    const unavailable = availability.filter((node) => node.status === 'unknown' || node.status === 'unavailable');
+    const ok = diagnostics.length === 0 && unavailable.length === 0;
     return okResult(
       ok
         ? `Flow '${io.name}' (${io.id}): ${io.inputs.length} input(s), ${io.outputs.length} output(s).`
-        : `Flow '${io.name}' (${io.id}) has ${diagnostics.length} wiring problem(s).`,
-      { ok, ...io, diagnostics },
+        : `Flow '${io.name}' (${io.id}) has ${diagnostics.length} wiring problem(s) and ${unavailable.length} unavailable node(s).`,
+      { ok, ...io, diagnostics, availability },
     );
   },
 };
@@ -223,25 +250,47 @@ const runFlowTool: Tool = {
       });
     }
 
+    // Capabilities first, so a malformed one is reported as itself rather
+    // than as every secret being undeclared (#5446 review).
+    const capsResult = parseCapabilities(doc.capabilities);
+    if (!capsResult.ok) {
+      throw new ToolExecutionError({
+        code: ToolErrorCode.INVALID_INPUT,
+        message: `the graph declares malformed capabilities: ${capsResult.errors.map((e) => e.message).join('; ')}`,
+      });
+    }
+
+    // Secrets: validated against the real environment BEFORE anything else
+    // touches the graph (see module doc above).
+    const secretErrors = validateSecretReferences(doc, process.env);
+    if (secretErrors.length > 0) {
+      throw new ToolExecutionError({
+        code: ToolErrorCode.INVALID_INPUT,
+        message: `${secretErrors.length} secret reference problem(s): ${secretErrors.map((e) => e.message).join('; ')}`,
+      });
+    }
+    const unavailable = checkAvailability(doc, registry, headlessFeatures(usableSecretNames(process.env)))
+      .filter((node) => node.status === 'unknown' || node.status === 'unavailable');
+    if (unavailable.length) throw new ToolExecutionError({
+      code: ToolErrorCode.UNSUPPORTED_OPERATION,
+      message: `Flow cannot run on this host: ${unavailable.map((node) => `${node.nodeId}: ${node.reasons.join('; ')}`).join(' | ')}`,
+      details: { availability: unavailable },
+    });
+
+    const secretValues = resolveSecretValues(doc, process.env);
+    const redaction = buildRedactionMap(secretValues);
+    const runDoc = interpolateSecrets(doc, secretValues);
+
+
     const model = resolveModel(ctx, input.model_id as string | undefined);
-    // `tables()` gives `table.joinByKey`'s tag/property strategies the entity
-    // table, as the CLI and viewer hosts do — without it those strategies fail
-    // at run time over MCP only. The mutation view is the one `bim.mutate`
-    // writes through, so a join sees what an earlier node in the run wrote.
-    const host: FlowHost = {
-      bim: model.bim,
-      defaultModelId: model.id,
-      tables: () => ({
-        entities: model.store.entities,
-        mutationView: model.backend.getOrCreateMutationView(),
-        strings: model.store.strings ?? null,
-      }),
-    };
-    const result = await runFlow(doc, {
+    // `networkGrants` is the graph's own declared capabilities (module doc);
+    // `model.openFromSource` can switch the host to a model it opened.
+    const host = createMcpFlowHost(model, ctx.registry, capsResult.value);
+    const result = await runFlow(runDoc, {
       host,
       registry,
       inputs: rawInputs,
-      features: headlessFeatures([]),
+      features: headlessFeatures(usableSecretNames(process.env)),
       modelRevisions: { [model.id]: 0 },
       tracking: new MemoryTrackingStore(),
       signal: ctx.signal,
@@ -251,19 +300,26 @@ const runFlowTool: Tool = {
     const statuses: Record<string, number> = {};
     for (const r of result.reports) statuses[r.status] = (statuses[r.status] ?? 0) + 1;
 
+    // Redacted at the OUTER boundary — the whole tool result, right before
+    // it crosses back to the MCP client — so a secret that came back inside
+    // a fetched response body (an output or an error message) is caught
+    // too, not just the literal param it was interpolated into.
     return okResult(
       result.ok
         ? `Flow '${doc.name}' ran: ${outputs.length} output(s).`
         : `Flow '${doc.name}' FAILED.`,
-      {
-        ok: result.ok,
-        nodes: statuses,
-        writes: result.writes,
-        tracking: trackingSummary(result),
-        outputs,
-        errors: result.log.filter((l) => l.level === 'error'),
-        warnings: result.log.filter((l) => l.level === 'warn'),
-      },
+      redactDeep(
+        {
+          ok: result.ok,
+          nodes: statuses,
+          writes: result.writes,
+          tracking: trackingSummary(result),
+          outputs,
+          errors: result.log.filter((l) => l.level === 'error'),
+          warnings: result.log.filter((l) => l.level === 'warn'),
+        },
+        redaction,
+      ),
     );
   },
 };

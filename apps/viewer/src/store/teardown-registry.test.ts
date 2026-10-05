@@ -28,9 +28,12 @@ const HERE = dirname(fileURLToPath(import.meta.url));
  * field on every file swap.
  */
 const PINNED_SESSION_RESET_KEYS: readonly string[] = [
+  'appearanceReferenceEntry', // #6615 unopened section requests cannot outlive their live model session
+  'workspaceMode', 'session', // #6232 authoring session: it names one model and storey
   'savedSections', 'savedSectionsModelKey', 'activeSavedSectionId', // multi-section DXF export: saved planes are world coordinates of the outgoing model (per-model copy stays in localStorage)
   'documentPanelVisible', // #4594 documents: templates survive, the panel closes
   'flowPanelVisible', 'flowRunning', 'flowLastRun', 'flowLastError', 'flowLastRunWindow', // #5167 flow: graphs survive, the last run holds handles of the outgoing model
+  'flowArtifacts', 'flowProgress', 'flowRunWarnings', // #6612 transient run evidence names the outgoing model inputs
   'chartPanelVisible', 'chartSelectionRevision', 'chartSlice', 'chartSliceSource', 'chartSliceBuckets', 'chartVisibilityOwned', 'chartVisibilityRevision', // #3944 charts: the slice is renderer ids of the outgoing model; the claim is on a shared channel
   'modelTagAssignments', 'modelTagView', // #4215 model tags: assignments and the Models-section view die with the federation, definitions survive
   'appearanceReferences', 'referenceUndo', 'referenceRedo', 'referenceRevision', 'selectedAppearanceReferenceId', // #4308 drawing workspace lifecycle
@@ -50,19 +53,21 @@ const PINNED_SESSION_RESET_KEYS: readonly string[] = [
   'contactShadingRadius', 'contextMenu', 'customOverrideRules', 'dirtyModels', 'discoveredLensData', 'draft',
   'drawing2D', 'drawing2DDisplayOptions', 'drawing2DError', 'drawing2DPanelVisible',
   'drawing2DPhase', 'drawing2DProgress', 'drawing2DStatus', 'drawing2DSvgContent',
-  'edgeContrastEnabled', 'edgeContrastIntensity', 'editEnabled', 'editingZone', 'error',
+  'editEnabled', 'editingZone', 'error',
   'expandedTaskGlobalIds', 'ganttPanelVisible', 'generateScheduleDialogOpen',
   'colorPresentationRevision', 'geometryProgress', 'geometryStreamingActive', 'geometryUpdateTick', 'ghostExceptEntities',
-  'hiddenEntities', 'hiddenEntitiesByModel', 'hierarchyBasketSelection', 'hoverState',
-  'hoveredTaskGlobalId', 'idsActiveEntityId', 'idsActiveSpecificationId', 'idsError',
+  'hiddenEntities', 'hierarchyBasketSelection', 'hoverState',
+  'hoveredTaskGlobalId', 'idsActiveEntityId', 'idsActiveSpecificationId', 'idsColorRevision', 'idsError',
   'idsFocusVisibilityOwned', 'idsLoading', 'idsPanelVisible', 'idsProgress',
-  'interactionMode', 'isolatedEntities', 'isolatedEntitiesByModel',
+  'interactionMode', 'isolatedEntities',
   'landXmlUnitsRefusal', // #5175 LandXML units-refusal retry prompt: dies with the load it belongs to
   'layerDiffBusy', 'layerStack', 'layerStackDiff', 'layerStackPathToId', 'layersPanelVisible',
   'lensAppliedColors',
   'lensAppliedHiddenIds', 'lensAutoColorLegend', 'lensColorMap',
   'lensHiddenIds', 'lensPanelVisible', 'lensRuleCounts', 'lensRuleEntityIds',
-  'lensRuleIsolation', 'listExecuting', 'listPanelVisible', 'listResult', 'loading',
+  'lensRuleIsolation', 'listExecuting', 'listPanelVisible', 'listResult', 'listVisibilityOwned', 'loading',
+  'loadingFileName', // #5849 the loading card's file name: dies with the load it names
+  'lastLoadRetry', // #5851 the retry closure captures the outgoing File or URL
   'measure2DCurrent', 'measure2DLockedAxis', 'measure2DMode', 'measure2DResults',
   'measure2DShiftLocked', 'measure2DSnapPoint', 'measure2DStart', 'meshColorBackup',
   'metadataProgress', 'mutationVersion', 'mutationViews', 'overridesEnabled',
@@ -81,14 +86,11 @@ const PINNED_SESSION_RESET_KEYS: readonly string[] = [
   'searchFieldFilter', 'searchFilter', 'searchFilterActiveGroup', 'searchFilterError', 'searchFilterResult',
   'searchFilterRunning', 'searchFilterSchema', 'searchHighlightIndex', 'searchIndexes',
   'searchModalOpen', 'searchModelFilter', 'searchOpen', 'searchQuery', 'searchVimCycle',
-  'sectionPlane', 'selectedAnnotation2D', 'selectedAnnotationId', 'selectedEntities',
+  'sceneState', 'sectionPlane', 'selectedAnnotation2D', 'selectedAnnotationId', 'selectedEntities',
   'selectedEntitiesSet', 'selectedEntity', 'selectedEntityId', 'selectedEntityIds', 'selectionRevision',
   'selectedLandXmlSource', 'selectedModelId', 'selectedStoreys', 'selectedTaskGlobalIds', 'separationLinesEnabled',
   'separationLinesIntensity', 'separationLinesQuality', 'separationLinesRadius',
-  'sheetEnabled', 'sheetPanelVisible', 'slabCutAnchor', 'slabCutFootprint',
-  'slabCutStoreyElevation', 'splitHoverAxisDirection', 'splitHoverCutPoint',
-  'splitHoverDistance', 'splitHoverLength', 'splitHoverPoint', 'splitMode',
-  'splitTargetExpressId', 'splitTargetModelId', 'suppressNextSection2DPanelAutoOpen',
+  'sheetEnabled', 'sheetPanelVisible', // #6232: the Split tool's fields moved into the element.split command gesture
   'textAnnotation2DEditing', 'textAnnotations2D', 'titleBlockEditorVisible', 'typeViewMode',
   'typeVisibility', 'undoStacks', 'visualEnhancementsEnabled', 'zoneApportionment',
   'zoneAssignmentTiming', 'zoneAssignments',
@@ -96,20 +98,23 @@ const PINNED_SESSION_RESET_KEYS: readonly string[] = [
 
 /** The same, for `all-models-cleared`. */
 const PINNED_ALL_MODELS_CLEARED_KEYS: readonly string[] = [
+  'appearanceReferenceEntry', // #6615 unopened section requests cannot outlive their live model session
+  'workspaceMode', 'session', // #6232 authoring session: it names one model and storey
   'savedSections', 'savedSectionsModelKey', 'activeSavedSectionId', // multi-section DXF export: saved planes are world coordinates of the outgoing model (per-model copy stays in localStorage)
   'flowLastRun', 'flowLastError', 'flowLastRunWindow', // #5167 flow: the last run's outputs hold handles into the cleared models
+  'flowArtifacts', 'flowProgress', 'flowRunWarnings', // #6612 transient run evidence names the outgoing model inputs
   'chartSelectionRevision', 'chartSlice', 'chartSliceSource', 'chartSliceBuckets', 'chartVisibilityOwned', 'chartVisibilityRevision', // #3944 charts
+  'listVisibilityOwned', // #6368 lists: the group-row isolate / X-ray claim names the cleared models' ids
   'modelTagAssignments', 'modelTagView', // #4215 model tags: assignments and the Models-section view die with the federation, definitions survive
   'modelPlacement', 'repositionNudge', 'repositionOpen', 'placementStaleMeasurements', // #4226 workspace placement lifecycle
-  'activeModelId', 'activeStorey', 'addElementModelId', 'addElementStoreyId', 'basketVisibilityOwned', 'classFilter',
-  'contextMenu', 'geometryResult', 'ghostExceptEntities', 'hiddenEntities', 'hiddenEntitiesByModel',
-  'hierarchyBasketSelection', 'hoverState', 'ifcDataStore', 'isolatedEntities', 'isolatedEntitiesByModel',
+  'activeModelId', 'activeStorey', 'basketVisibilityOwned', 'classFilter',
+  'contextMenu', 'geometryResult', 'ghostExceptEntities', 'hiddenEntities',
+  'hierarchyBasketSelection', 'hoverState', 'ifcDataStore', 'isolatedEntities',
   'layerDiffBusy', 'layerStack', 'layerStackDiff', 'layerStackPathToId',
-  'meshColorBackup', 'models', 'pinboardEntities', 'selectedEntities', 'selectedEntitiesSet',
+  'meshColorBackup', 'models', 'pinboardEntities', 'sceneState', // #5893: every model gone is a new scene too
+  'selectedEntities', 'selectedEntitiesSet',
   'selectedEntity', 'selectedEntityId', 'selectedEntityIds', 'selectedLandXmlSource', 'selectedModelId', 'selectedStoreys', 'selectionRevision',
-  'slabCutAnchor', 'slabCutFootprint', 'slabCutStoreyElevation', 'splitHoverAxisDirection',
-  'splitHoverCutPoint', 'splitHoverDistance', 'splitHoverLength', 'splitHoverPoint', 'splitMode',
-  'splitTargetExpressId', 'splitTargetModelId',
+  'validationRuleSetDraft', 'validationRuleSetEditing', // #5825 full unload discards the unsaved editor
 ];
 
 /**
@@ -151,10 +156,11 @@ const PINNED_ALL_MODELS_CLEARED_KEYS: readonly string[] = [
 const PINNED_MODEL_REMOVED_KEYS: readonly string[] = [
   'modelTagAssignments', // #4215 model tags: assignments die with the model, definitions survive
   'flowLastRun', 'flowLastError', 'flowLastRunWindow', // #5167 flow: the last run's outputs hold handles into the removed model
-  'activeModelId', 'activeStorey', 'addElementModelId', 'addElementStoreyId', 'annotation2DCursorPos', 'classFilter',
+  'flowArtifacts', 'flowProgress', 'flowRunWarnings', // #6612 transient run evidence names the outgoing model inputs
+  'activeModelId', 'activeStorey', 'annotation2DCursorPos', 'classFilter',
   'cloudAnnotation2DPoints', 'cloudAnnotations2D', 'contextMenu', 'drawing2DDisplayOptions', 'geometryResult',
-  'ghostExceptEntities', 'hiddenEntities', 'hiddenEntitiesByModel',
-  'hierarchyBasketSelection', 'hoverState', 'ifcDataStore', 'isolatedEntities', 'isolatedEntitiesByModel',
+  'ghostExceptEntities', 'hiddenEntities',
+  'hierarchyBasketSelection', 'hoverState', 'ifcDataStore', 'isolatedEntities',
   'layerDiffBusy', 'layerStack', 'layerStackDiff', 'layerStackPathToId',
   'measure2DCurrent', 'measure2DResults', 'measure2DSnapPoint', 'measure2DStart', 'meshColorBackup', 'models', 'pinboardEntities',
   'polygonArea2DPoints', 'polygonArea2DResults',
@@ -187,13 +193,9 @@ function modelRemovedFixture() {
     isolatedEntities: new Set([45, 1007]),
     ghostExceptEntities: new Set([46]),
     classFilter: { ids: new Set([47]), label: 'walls' },
-    hiddenEntitiesByModel: new Map([['A', new Set([43])]]),
-    isolatedEntitiesByModel: new Map([['A', new Set([45])]]),
     pinboardEntities: new Set(['A:42', 'B:5']),
     hierarchyBasketSelection: new Set(['A:42']),
     meshColorBackup: new Map([[42, [1, 1, 1, 1]]]),
-    addElementModelId: 'A',
-    addElementStoreyId: 44,
     hoverState: { entityId: 42, screenX: 1, screenY: 2 },
     contextMenu: { isOpen: true, entityId: 42, screenX: 1, screenY: 2 },
     ifcDataStore: null,
@@ -214,22 +216,25 @@ function modelRemovedFixture() {
 /**
  * Every key some slice DECLARES it may destroy, across all scopes.
  *
- * Wider than the emitted lists above by the six keys only a federation scope
- * writes (`models`, `activeModelId`, `ifcDataStore`, `geometryResult`,
- * `addElementModelId`, `addElementStoreyId`). Pinned so a key vanishing from an
+ * Wider than the emitted lists above by the four keys only a federation scope
+ * writes (`models`, `activeModelId`, `ifcDataStore`, `geometryResult`). Pinned so a key vanishing from an
  * `owns` list fails even when no scope emits it under an empty state.
  */
 const PINNED_OWNED_KEYS: readonly string[] = [
+  'appearanceReferenceEntry', // #6615 unopened section requests cannot outlive their live model session
+  'workspaceMode', 'session', // #6232 authoring session: it names one model and storey
+  'authoringDefaults', // #6232 M2: type / layer-set picks name one model's entities; dimensions survive
   'savedSections', 'savedSectionsModelKey', 'activeSavedSectionId', // multi-section DXF export: saved planes are world coordinates of the outgoing model (per-model copy stays in localStorage)
   'documentPanelVisible', // #4594 documents
   'flowPanelVisible', 'flowRunning', 'flowLastRun', 'flowLastError', 'flowLastRunWindow', // #5167 flow
+  'flowArtifacts', 'flowProgress', 'flowRunWarnings', // #6612 transient run evidence names the outgoing model inputs
   'chartPanelVisible', 'chartSelectionRevision', 'chartSlice', 'chartSliceSource', 'chartSliceBuckets', 'chartVisibilityOwned', 'chartVisibilityRevision', // #3944 charts
   'modelTagAssignments', 'modelTagView', // #4215 model tags: assignments and the Models-section view die with the federation, definitions survive
   'appearanceReferences', 'referenceUndo', 'referenceRedo', 'referenceRevision', 'selectedAppearanceReferenceId', // #4308 drawing workspace lifecycle
   'modelPlacement', 'repositionNudge', 'repositionOpen', 'placementStaleMeasurements', // #4226 workspace placement lifecycle
   'activeBasketViewId', 'activeChangeSetId', 'activeLensId', 'activeListId', 'activeModelId',
   'activePresetId', 'activeSheet', 'activeStorey', 'activeTool', 'activeTopicId',
-  'activeViewpointId', 'activeWorkScheduleId', 'addElementModelId', 'addElementStoreyId',
+  'activeViewpointId', 'activeWorkScheduleId',
   'animationEnabled', 'annotation2DActiveTool', 'annotation2DCursorPos',
   'basketVisibilityOwned', 'basketPresentationVisible', 'basketViews', 'bcfError', 'bcfLoading', 'bcfPanelVisible',
   'cameraRotation', 'cesiumAvailable', 'cesiumEnabled', 'cesiumGlbLoaded',
@@ -242,19 +247,22 @@ const PINNED_OWNED_KEYS: readonly string[] = [
   'contactShadingRadius', 'contextMenu', 'customOverrideRules', 'dirtyModels', 'discoveredLensData', 'draft',
   'drawing2D', 'drawing2DDisplayOptions', 'drawing2DError', 'drawing2DPanelVisible',
   'drawing2DPhase', 'drawing2DProgress', 'drawing2DStatus', 'drawing2DSvgContent',
-  'edgeContrastEnabled', 'edgeContrastIntensity', 'editEnabled', 'editingZone', 'error',
+  'editEnabled', 'editingZone', 'error',
   'expandedTaskGlobalIds', 'ganttPanelVisible', 'generateScheduleDialogOpen',
   'colorPresentationRevision', 'geometryProgress', 'geometryResult', 'geometryStreamingActive', 'geometryUpdateTick',
-  'ghostExceptEntities', 'hiddenEntities', 'hiddenEntitiesByModel', 'hierarchyBasketSelection',
+  'ghostExceptEntities', 'hiddenEntities', 'hierarchyBasketSelection',
   'hoverState', 'hoveredTaskGlobalId', 'idsActiveEntityId', 'idsActiveSpecificationId',
+  'idsColorRevision', // #6373 report colours' paint-channel claim
   'idsError', 'idsFocusVisibilityOwned', 'idsLoading', 'idsPanelVisible', 'idsProgress',
-  'ifcDataStore', 'interactionMode', 'isolatedEntities', 'isolatedEntitiesByModel',
+  'ifcDataStore', 'interactionMode', 'isolatedEntities',
   'landXmlUnitsRefusal', // #5175
   'layerDiffBusy', 'layerStack', 'layerStackDiff', 'layerStackPathToId', 'layersPanelVisible',
   'lensAppliedColors',
   'lensAppliedHiddenIds', 'lensAutoColorLegend',
   'lensColorMap', 'lensHiddenIds', 'lensPanelVisible', 'lensRuleCounts', 'lensRuleEntityIds',
-  'lensRuleIsolation', 'listExecuting', 'listPanelVisible', 'listResult', 'loading',
+  'lensRuleIsolation', 'listExecuting', 'listPanelVisible', 'listResult', 'listVisibilityOwned', 'loading',
+  'loadingFileName', // #5849
+  'lastLoadRetry', // #5851
   'measure2DCurrent', 'measure2DLockedAxis', 'measure2DMode', 'measure2DResults',
   'measure2DShiftLocked', 'measure2DSnapPoint', 'measure2DStart', 'meshColorBackup',
   'metadataProgress', 'models', 'mutationVersion', 'mutationViews', 'overridesEnabled',
@@ -273,17 +281,15 @@ const PINNED_OWNED_KEYS: readonly string[] = [
   'searchFieldFilter', 'searchFilter', 'searchFilterActiveGroup', 'searchFilterError', 'searchFilterResult',
   'searchFilterRunning', 'searchFilterSchema', 'searchHighlightIndex', 'searchIndexes',
   'searchModalOpen', 'searchModelFilter', 'searchOpen', 'searchQuery', 'searchVimCycle',
-  'sectionPlane', 'selectedAnnotation2D', 'selectedAnnotationId', 'selectedEntities',
+  'sceneState', 'sectionPlane', 'selectedAnnotation2D', 'selectedAnnotationId', 'selectedEntities',
   'selectedEntitiesSet', 'selectedEntity', 'selectedEntityId', 'selectedEntityIds', 'selectionRevision',
   'selectedLandXmlSource', 'selectedModelId', 'selectedStoreys', 'selectedTaskGlobalIds', 'separationLinesEnabled',
   'separationLinesIntensity', 'separationLinesQuality', 'separationLinesRadius',
-  'sheetEnabled', 'sheetPanelVisible', 'slabCutAnchor', 'slabCutFootprint',
-  'slabCutStoreyElevation', 'splitHoverAxisDirection', 'splitHoverCutPoint',
-  'splitHoverDistance', 'splitHoverLength', 'splitHoverPoint', 'splitMode',
-  'splitTargetExpressId', 'splitTargetModelId', 'suppressNextSection2DPanelAutoOpen',
+  'sheetEnabled', 'sheetPanelVisible', // #6232: the Split tool's fields moved into the element.split command gesture
   'textAnnotation2DEditing', 'textAnnotations2D', 'titleBlockEditorVisible', 'typeViewMode',
   'typeVisibility', 'undoStacks', 'visibilityRevision', 'visualEnhancementsEnabled', 'zoneApportionment',
   'zoneAssignmentTiming', 'zoneAssignments',
+  'validationRuleSetDraft', 'validationRuleSetEditing', // #5825 owned by the draft slice
 ];
 
 

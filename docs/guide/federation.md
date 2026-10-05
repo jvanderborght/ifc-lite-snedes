@@ -250,12 +250,19 @@ points and are labelled **Stale** after movement; remeasure them. Clash and scan
 deviation results are invalidated and must be recomputed after applying a move.
 Cancelling a preview restores prior measurement validity and analysis results;
 a deviation result whose GPU buffers were overwritten during the preview must
-be recomputed. Source-model
-comparison still describes authored changes rather than registration offsets.
-STEP IFC exports retain authored coordinates; graphical GLB and IFC5 geometry
+be recomputed. Source-model comparison still describes authored changes rather
+than registration offsets. STEP IFC exports retain authored coordinates;
+graphical GLB and IFC5 geometry
 exports include workspace placement. Export the placement manifest alongside
 source IFC or scan files when sharing this arrangement. Transformed LAS/E57
 writing is not provided.
+
+After a completed deviation run, the Deviation panel's **Export CSV** action
+reports minimum, maximum and mean signed distance in metres for each scan asset.
+The CSV identifies the scan model when several models are loaded. The renderer's
+`readDeviationAssetStats()` method provides the same per-asset values on demand;
+it reads GPU deviation buffers only when called and reports no row for a scan
+asset added after the run. Recompute before exporting after a model change.
 
 World Context refreshes its Cesium model after movement pauses, using the same
 placed geometry. Its previous model stays visible until the replacement is ready;
@@ -344,3 +351,13 @@ const result = await parseFederatedIfcx([
 ```
 
 See the [IFC5 Parsing Guide](parsing.md) for more details on IFCX format support.
+
+
+## Filename tags in saved workflows
+
+[Session automation](flow.md#file-slots-reports-and-portability) loads models
+through the same federation loader and can assign model tags from their original
+filenames. All matching rules union their tag names, preserving manual tags.
+Checks target qualified file slots, exact filenames or normalized tag names.
+Duplicate filenames require explicit slot bindings; comparison A/base and B/head
+roles must each resolve exactly one model.

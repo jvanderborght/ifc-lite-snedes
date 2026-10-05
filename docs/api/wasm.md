@@ -239,6 +239,8 @@ Collapsing the two exports the whole model to a caller who asked for a subset.
 
 `exportStep` also fails closed on `mutationsJson`: an empty string means "no mutations" and exports cleanly, but a non-empty string that fails to parse throws (message prefixed `exportStep:`) instead of silently exporting the model with none of the caller's edits applied.
 
+`mutationsJson` is either the mutation log `MutablePropertyView.exportMutations()` returns (an object with a `mutations` array, optionally `newEntities` and `georefMutations`) or the older pre-serialized `{ attributeUpdates, propertyMutations }` shape. A log is written by the Rust mutation-log writer, byte-identical to the TypeScript `StepExporter` for the same edits apart from generated GlobalIds (#5941); it throws when the log carries a mutation kind the writer does not apply yet, a `type` it does not recognise (the TypeScript replay skips one with a warning), or an `UPDATE_ATTRIBUTE` with a `null` `newValue` (clear with `''`), when it is combined with `included`, or when it also carries the older shape's keys.
+
 #### Other Parsing
 
 ```typescript
@@ -335,7 +337,7 @@ readonly is_ready: boolean; // true once the API is initialized
 
 ### Other Exported Classes
 
-Beyond `IfcAPI` and the mesh types below, the module exports `ClashSession` / `ClashRunResult` (native clash detection over ingested mesh buffers), `GridAxisCollection` / `GridAxisJs` (parsed grid axes), `ProfileCollection` / `ProfileEntryJs`, `PartitionedBatch`, `MeshOutlineJs`, `SpacePlateHandle` (interactive space-sketch topology), `Contours2D` (see below), and the `Symbolic*` classes (`SymbolicRepresentationCollection`, `SymbolicPolyline`, `SymbolicCircle`, `SymbolicText`, `SymbolicFillArea`). See `packages/wasm/pkg/ifc-lite.d.ts` for their full definitions.
+Beyond `IfcAPI` and the mesh types below, the module exports `ClashSession` / `ClashRunResult` (native clash detection over ingested mesh buffers), `GridAxisCollection` / `GridAxisJs` (parsed grid axes), `ProfileCollection` / `ProfileEntryJs`, `PartitionedBatch`, `MeshOutlineJs`, `SpacePlateHandle` (interactive room-layout topology), `Contours2D` (see below), and the `Symbolic*` classes (`SymbolicRepresentationCollection`, `SymbolicPolyline`, `SymbolicCircle`, `SymbolicText`, `SymbolicFillArea`). See `packages/wasm/pkg/ifc-lite.d.ts` for their full definitions.
 
 `SymbolicFillArea.geometryItemId` optionally identifies an unambiguous direct
 fill item in a single flat representation. Match it together with the owning

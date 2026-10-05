@@ -51,7 +51,7 @@ export default defineConfig({
   projects: [
     {
       name: 'viewer-e2e',
-      testMatch: /(viewer-smoke|usd-export|laz-wasm|model-reposition|document-text|rte-gpu-witness|federation-control-triplet|landxml-units-smoke|ribbon-labels|section-overlays|hierarchy-names)\.e2e\.spec\.ts/,
+      testMatch: /(viewer-smoke|mobile-page-zoom|mobile-panels|mobile-long-press|mobile-journey|usd-export|laz-wasm|model-reposition|document-text|validation-colors|rte-gpu-witness|federation-control-triplet|landxml-units-smoke|ribbon-labels|ribbon-classic-migration|panel-groups-5873|ribbon-reachability-5874|hierarchy-names|hierarchy-row-selection|bulk-target-sources|bulk-filter-groups|entity-context-menu|ribbon-entity-actions|viewport-hud|command-palette-entry|navigation-presets|sticky-overrides|orbit-pivot-marker|target-size-focus-5826|visibility-chips|visibility-empty-result|visibility-scenarios|section-measure-lasting-5893|lens-filter-groups|keyboard-dispatcher|lists-value-rules|swept-disk-centreline|swept-disk-inspection|swept-disk-source-snap)\.e2e\.spec\.ts/,
       timeout: 240000,
       use: {
         ...devices['Desktop Chrome'],
@@ -72,7 +72,7 @@ export default defineConfig({
     },
     {
       name: 'viewer-e2e-ci',
-      testMatch: /(viewer-smoke|usd-export|laz-wasm|model-reposition|document-text|rte-gpu-witness|federation-control-triplet|landxml-units-smoke|ribbon-labels|section-overlays|hierarchy-names)\.e2e\.spec\.ts/,
+      testMatch: /(viewer-smoke|mobile-page-zoom|mobile-panels|mobile-long-press|mobile-journey|usd-export|laz-wasm|model-reposition|document-text|validation-colors|rte-gpu-witness|federation-control-triplet|landxml-units-smoke|ribbon-labels|ribbon-classic-migration|panel-groups-5873|ribbon-reachability-5874|hierarchy-names|hierarchy-row-selection|bulk-target-sources|bulk-filter-groups|entity-context-menu|ribbon-entity-actions|viewport-hud|command-palette-entry|navigation-presets|sticky-overrides|orbit-pivot-marker|target-size-focus-5826|visibility-chips|visibility-empty-result|visibility-scenarios|section-measure-lasting-5893|lens-filter-groups|keyboard-dispatcher|lists-value-rules|swept-disk-centreline|swept-disk-inspection|swept-disk-source-snap)\.e2e\.spec\.ts/,
       timeout: 240000,
       use: {
         baseURL: BASE_URL,
@@ -143,7 +143,7 @@ export default defineConfig({
       // WebGPU. Not in CI's default lanes (no relay there) — `pnpm test:e2e:collab`, see
       // docs/contributing/collaboration-testing.md.
       name: 'viewer-collab-e2e',
-      testMatch: /collab-(share-seed|federation-scope|pdf-vector-room)\.e2e\.spec\.ts/,
+      testMatch: /collab-(share-seed|federation-scope|pdf-vector-room|georeference)\.e2e\.spec\.ts/,
       timeout: 600000,
       use: {
         actionTimeout: 60000,

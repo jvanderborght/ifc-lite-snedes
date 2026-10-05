@@ -23,12 +23,11 @@ export const flowPanelEn = {
   'flowPanel.run': 'Run',
   'flowPanel.running': 'Running…',
   'flowPanel.runHint': 'Run the graph; every write lands in the change set as one undo step',
-  'flowPanel.close': 'Close',
   'flowPanel.emptyCanvas': 'Add nodes from the palette, connect their ports, and run. Click an edge and press Delete to cut it, or drag either end onto another port to re-route it.',
 
   'flowPanel.examples.open': 'Examples…',
   'flowPanel.examples.ariaLabel': 'Open an example graph',
-  'flowPanel.examples.heading': 'Start from an example — each one runs against the loaded model, and opens as your own editable copy.',
+  'flowPanel.examples.heading': 'Start from an example — query a loaded model or prepare a local coordination session. Each opens as your own editable copy.',
   'flowPanel.examples.size': '{nodes} nodes · {edges} edges',
   'flowPanel.noModel': 'Load a model to run a graph.',
 

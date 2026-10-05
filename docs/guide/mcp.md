@@ -103,6 +103,8 @@ Tools are grouped by capability. Everything below is registered in the default t
 | Clash | `clash_check`, `clash_matrix` |
 | Validation | `ids_validate`, `ids_explain`, `model_audit`, `gherkin_check` *(planned)* |
 | Mutation | `entity_set_property`, `entity_delete_property`, `entity_set_attribute`, `entity_create`, `entity_delete`, `mutation_batch`, `mutation_undo`, `mutation_diff`, `model_save` |
+| Hosted modelling | `place_opening`, `place_door`, `place_window` |
+| Wall joins | `join_walls` |
 | BCF | `bcf_topic_list`, `bcf_topic_create`, `bcf_topic_update`, `bcf_topic_close`, `bcf_viewpoint_create`, `bcf_export` |
 | bSDD | `bsdd_search`, `bsdd_class`, `bsdd_property_sets`, `bsdd_match` |
 | Diff | `model_diff`, `quantity_diff` |
@@ -110,6 +112,33 @@ Tools are grouped by capability. Everything below is registered in the default t
 | Flow | `describe_flow`, `run_flow` |
 | Viewer | `viewer_ask`, `viewer_open`, `viewer_close`, `viewer_status`, `viewer_colorize`, `viewer_isolate`, `viewer_hide`, `viewer_show`, `viewer_reset`, `viewer_fly_to`, `viewer_set_section`, `viewer_clear_section`, `viewer_color_by_storey`, `viewer_color_by_property`, `viewer_get_selection`, `viewer_wait_for_selection`, `viewer_describe_selection` |
 | Draft layers & review | `create_draft_layer`, `draft_apply_ops`, `publish_layer`, `diff_layer`, `dry_run_merge`, `list_conflicts`, `request_review`, `add_review_feedback`, `get_review_feedback`, `add_review_topic`, `respond_to_review` |
+
+`join_walls` takes `a_express_id`, `b_express_id`, optional `model_id` and optional `options` (`Name`, `priority: 'a' | 'b'`, `tolerance` in metres and `priorities: { a?: number[]; b?: number[] }`). It uses `bim.store.joinWalls` and the canonical Model workspace core. Both walls must be straight and in the same placement frame. Unreadable hosted cuts, or an opening stranded by either joined end face, refuse atomically. One `mutation_undo` restores the complete earlier wall graph and any replaced relationship. The IFC export contains the join; headless geometry queries continue to read parsed geometry.
+
+`place_opening`, `place_door` and `place_window` run the same hosted creation core as the Model workspace and `bim.store.addOpening` / `addHostedDoor` / `addHostedWindow`. Supply `host_express_id` within the chosen `model_id` and PascalCase `params`. Offsets, sills and dimensions are metres in the wall's local frame; windows require `Sill`. Cuts outside the wall, overlapping source or overlay openings, and unreadable opening geometry are refused without a partial graph. One `mutation_undo` removes the complete placement. IFC2X3, IFC4 and IFC4X3 are supported. The exported STEP carries the void/fill graph; MCP geometry tools still read parsed geometry.
+
+```json
+{
+  "name": "place_door",
+  "arguments": {
+    "model_id": "building",
+    "host_express_id": 1222,
+    "params": { "Offset": 8, "Width": 0.9, "Height": 2.1, "Name": "D1" }
+  }
+}
+```
+
+!!! tip "Pinning the GlobalId of a created entity"
+    `entity_create` takes an optional `global_id`: the GlobalId of the new
+    entity, the MCP counterpart of the `GlobalId` parameter the in-store
+    builders and `bim.store.add*` accept. It must be a valid 22-character IFC
+    GUID (the `isValidIfcGuid` rule from `@ifc-lite/encoding`), the class must
+    derive from `IfcRoot` (the value is written to attribute 0), and it must not
+    already be carried by an entity in the model, parsed or created this
+    session. Each violation is refused with `INVALID_INPUT` and nothing is
+    queued; a GlobalId given both as `global_id` and as a different
+    `attributes[0]` is refused too. Without `global_id` the tool behaves as
+    before.
 
 !!! tip "`model_diff` and re-exported models"
     `model_diff` compares by GlobalId, so two files that describe the same

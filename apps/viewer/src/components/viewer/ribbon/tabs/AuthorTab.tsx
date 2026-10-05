@@ -1,7 +1,7 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
-import { hasWorkspaceHistory, replayWorkspaceHistory } from '@/lib/model-placement/history';
+import { hasWorkspaceHistory } from '@/lib/model-placement/history';
 
 /**
  * Ribbon · Author tab — the authoring surface: the global edit-mode
@@ -10,33 +10,29 @@ import { hasWorkspaceHistory, replayWorkspaceHistory } from '@/lib/model-placeme
  * toolbar (viewer/commenter roles cannot unlock authoring).
  */
 
-import { Extension, SpaceSketch, AddElement, EditElement, EditProperty, ImportData, Undo, Redo, Appearance } from '@/icons';
+import { Extension, EditElement, EditProperty, ImportData, Undo, Redo, Appearance, Layer } from '@/icons';
 import { useViewerStore } from '@/store';
-import { useIfc } from '@/hooks/useIfc';
 import { useTranslation } from '@/i18n';
-import { tourAnchor, toolAnchor } from '@/lib/tours/anchors';
 import { BulkPropertyEditor } from '../../BulkPropertyEditor';
 import { DataConnector } from '../../DataConnector';
 import { useWorkspacePanelControls } from '../../toolbar/useWorkspacePanelControls';
 import {
   RibbonGroup,
   RibbonGroupDivider,
-  RibbonLargeButton,
-  RibbonSmallButton,
   RibbonSmallStack,
 } from '../primitives';
+import { RibbonCommandLargeButton, RibbonCommandSmallButton } from '../command-button';
 
-/** Purple latched accent shared by the authoring toggles (matches the
- *  classic toolbar's Edit pill so the mode reads identically). */
-const EDIT_ACTIVE_CLASS = 'bg-purple-600/20 text-foreground ring-1 ring-inset ring-purple-600/50';
+/** Latched state shared by the authoring toggles: the interaction accent
+ *  (overlay token, #5483), not a mode-specific hue, so edit mode reads the
+ *  same in the ribbon and over the model (#5489). */
+const EDIT_ACTIVE_CLASS = 'bg-overlay-accent-soft text-foreground ring-1 ring-inset ring-overlay-accent/50';
 
 export function AuthorTab() {
   const { t } = useTranslation();
-  const { ifcDataStore } = useIfc();
-  const activeTool = useViewerStore((state) => state.activeTool);
-  const setActiveTool = useViewerStore((state) => state.setActiveTool);
-  const editEnabled = useViewerStore((state) => state.editEnabled);
-  const toggleEditEnabled = useViewerStore((state) => state.toggleEditEnabled);
+  const ifcDataStore = useViewerStore((s) => s.ifcDataStore);
+  // Edit mode is the Model workspace (#6232): this button enters and leaves it.
+  const inModelWorkspace = useViewerStore((state) => state.editEnabled);
   // Collab role: editing is reserved for editor/admin. Derive from the
   // reactive role so the Edit switch enables/disables live when the role
   // changes. null role = single-user, always editable.
@@ -51,37 +47,38 @@ export function AuthorTab() {
   const hasRedo = useViewerStore(state => hasWorkspaceHistory(state, 'redo'));
   const canRedo = canEditInSession && hasRedo;
 
-  const { activeWorkspacePanels, handleToggleRightPanel } = useWorkspacePanelControls();
+  const { activeWorkspacePanels, handleToggleRightPanel } = useWorkspacePanelControls('ribbon');
 
   return (
     <>
       <RibbonGroup label={t('ribbon.author.editGroup')}>
-        <RibbonLargeButton
+        <RibbonCommandLargeButton
+          commandId="tool:edit-mode"
           icon={EditElement}
-          label={t('ribbon.author.editMode')}
           tooltip={canEditInSession
-            ? (editEnabled ? t('ribbon.author.exitEditTooltip') : t('ribbon.author.enterEditTooltip'))
+            ? (inModelWorkspace ? t('ribbon.author.exitEditTooltip') : t('ribbon.author.enterEditTooltip'))
             : t('ribbon.author.editLockedTooltip')}
-          shortcut="E"
-          active={editEnabled}
+          active={inModelWorkspace}
           activeClassName={EDIT_ACTIVE_CLASS}
           disabled={!canEditInSession}
-          onClick={toggleEditEnabled}
         />
         <RibbonSmallStack>
-          <RibbonSmallButton
+          <RibbonCommandSmallButton
+            commandId="author:undo"
             icon={Undo}
-            label={t('ribbon.author.undo')}
-            shortcut="⌘Z"
             disabled={!canUndo}
-            onClick={() => { replayWorkspaceHistory(useViewerStore.getState(), 'undo'); }}
           />
-          <RibbonSmallButton
+          <RibbonCommandSmallButton
+            commandId="author:redo"
             icon={Redo}
-            label={t('ribbon.author.redo')}
-            shortcut="⌘⇧Z"
             disabled={!canRedo}
-            onClick={() => { replayWorkspaceHistory(useViewerStore.getState(), 'redo'); }}
+          />
+          {/* Change sets (#6232 D4): which named set new edits land in. */}
+          <RibbonCommandSmallButton
+            commandId="panel:changeSets"
+            icon={Layer}
+            active={activeWorkspacePanels.has('changeSets')}
+            commandContext={{ activateRightPanel: () => useViewerStore.getState().toggleWorkspacePanel('changeSets', 'ribbon') }}
           />
         </RibbonSmallStack>
       </RibbonGroup>
@@ -89,36 +86,14 @@ export function AuthorTab() {
       <RibbonGroupDivider />
 
       <RibbonGroup label={t('ribbon.author.createGroup')}>
-        <RibbonLargeButton
+        <RibbonCommandLargeButton
+          commandId="panel:appearance"
           icon={Appearance}
-          label={t('ribbon.author.appearance')}
           className="w-20"
           tooltip={t('ribbon.author.appearanceTooltip')}
           active={activeWorkspacePanels.has('appearance')}
           activeClassName={EDIT_ACTIVE_CLASS}
-          onClick={() => handleToggleRightPanel('appearance')}
-        />
-        <RibbonLargeButton
-          icon={AddElement}
-          label={t('ribbon.author.addElement')}
-          tooltip={t('ribbon.author.addElementTooltip')}
-          active={activeWorkspacePanels.has('addElement')}
-          activeClassName={EDIT_ACTIVE_CLASS}
-          disabled={!canEditInSession}
-          onClick={() => handleToggleRightPanel('addElement')}
-        />
-        {/* Space Sketch bakes IfcSpace entities; picking it flips edit
-            mode on via the AUTHORING_TOOLS rule in uiSlice, so it can
-            stay visible (not hidden behind edit mode like the classic
-            toolbar) — the ribbon has room for stable geography. */}
-        <RibbonLargeButton
-          icon={SpaceSketch}
-          label={t('ribbon.author.spaceSketch')}
-          active={activeTool === 'spaceSketch'}
-          activeClassName={EDIT_ACTIVE_CLASS}
-          disabled={!canEditInSession}
-          onClick={() => setActiveTool('spaceSketch')}
-          {...tourAnchor(toolAnchor('spaceSketch'))}
+          commandContext={{ activateRightPanel: () => handleToggleRightPanel('appearance') }}
         />
       </RibbonGroup>
 
@@ -128,18 +103,20 @@ export function AuthorTab() {
         <RibbonSmallStack>
           <BulkPropertyEditor
             trigger={
-              <RibbonSmallButton
+              <RibbonCommandSmallButton
+                commandId="author:bulk-properties"
+                triggerOnly
                 icon={EditProperty}
-                label={t('ribbon.author.bulkPropertyEditor')}
                 disabled={!ifcDataStore}
               />
             }
           />
           <DataConnector
             trigger={
-              <RibbonSmallButton
+              <RibbonCommandSmallButton
+                commandId="author:import-data"
+                triggerOnly
                 icon={ImportData}
-                label={t('ribbon.author.importData')}
                 disabled={!ifcDataStore}
               />
             }
@@ -150,16 +127,14 @@ export function AuthorTab() {
       <RibbonGroupDivider />
 
       {/* Extensions & flavors manage the workspace itself — installed
-          extensions, personal flavors, permissions. Customization, not
-          analysis, so it lives here (mirrors the classic Panels menu,
-          which files Extensions under its "Author" section). */}
+          extensions, personal flavors, permissions. */}
       <RibbonGroup label={t('ribbon.author.customizeGroup')}>
-        <RibbonLargeButton
+        <RibbonCommandLargeButton
+          commandId="panel:extensions"
           icon={Extension}
-          label={t('ribbon.author.extensions')}
           tooltip={t('ribbon.author.extensionsTooltip')}
           active={activeWorkspacePanels.has('extensions')}
-          onClick={() => handleToggleRightPanel('extensions')}
+          commandContext={{ activateRightPanel: () => handleToggleRightPanel('extensions') }}
         />
       </RibbonGroup>
     </>

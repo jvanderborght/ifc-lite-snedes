@@ -16,7 +16,7 @@ describe('WORKSPACE_PANELS — wall analysis panel registration', () => {
   it('registers one wide wallAnalysis entry in the right pane, and no separate timber panel', () => {
     const entry = WORKSPACE_PANELS.find((p) => p.id === 'wallAnalysis');
     assert.notEqual(entry, undefined, "WORKSPACE_PANELS is missing the 'wallAnalysis' panel definition");
-    assert.equal(entry?.title, 'Wall analysis');
+    assert.equal(entry?.titleKey, 'wallAnalysis.title');
     assert.equal(entry?.region, 'side');
     assert.equal(entry?.prefersWide, true);
     assert.equal(WORKSPACE_PANELS.some((p) => (p.id as string) === 'timberFraction'), false);

@@ -13,10 +13,12 @@
  * publish a stale or partial report.
  */
 
+import { runInformationCheck } from '@/lib/validation/run-information-check';
+import { isNativeWorkflowBusy } from '@/lib/flow/run-session';
 import { useCallback, useRef, useState } from 'react';
 import { useViewerStore } from '@/store';
 import { useTranslation } from '@/i18n';
-import { resolveTargetModels, runRuleSet, type RuleEngineProgress } from '@ifc-lite/rules';
+import { resolveTargetModels, type RuleEngineProgress } from '@ifc-lite/rules';
 import type { RuleSetFile } from '@ifc-lite/rules';
 import { parseRuleSetFile } from '@ifc-lite/rules';
 import { importRuleSetFile, exportRuleSet } from '@/lib/validation/rule-set-io-browser';
@@ -83,8 +85,10 @@ export interface UseInformationValidationResult {
 
 export function useInformationValidation(): UseInformationValidationResult {
   const { t } = useTranslation();
-  const [file, setFileState] = useState<RuleSetFile | null>(null);
-  const [editing, setEditing] = useState(false);
+  const file = useViewerStore((s) => s.validationRuleSetDraft);
+  const editing = useViewerStore((s) => s.validationRuleSetEditing);
+  const setFileState = useViewerStore((s) => s.setValidationRuleSetDraft);
+  const setEditing = useViewerStore((s) => s.setValidationRuleSetEditing);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<RuleEngineProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +102,7 @@ export function useInformationValidation(): UseInformationValidationResult {
   const setFile = useCallback((next: RuleSetFile) => {
     setFileState(next);
     setError(null);
-  }, []);
+  }, [setFileState]);
 
   const newRuleSet = useCallback(() => {
     setFile(blankRuleSet());
@@ -195,8 +199,13 @@ export function useInformationValidation(): UseInformationValidationResult {
   }, [bumpEpoch]);
 
   const run = useCallback(async () => {
+    if (isNativeWorkflowBusy()) {
+      setError('A workflow is running; wait or cancel it.');
+      return;
+    }
     if (!file) return;
     const myEpoch = bumpEpoch();
+    abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -209,10 +218,11 @@ export function useInformationValidation(): UseInformationValidationResult {
       // live store state is turned into that shape here, the one place the
       // adapter (`lib/model-tags/evaluator-models.ts`) is called from.
       const state = useViewerStore.getState();
-      const report = await runRuleSet({
+      const { report, snapshot } = await runInformationCheck({
         ruleSet: file,
         models: evaluatorModelsFromState(state),
         definedModelTagIds: definedModelTagIdsOf(state),
+        reportModels: state.models,
         signal: controller.signal,
         onProgress: (p) => { if (stillWanted(myEpoch)) setProgress(p); },
       });
@@ -220,7 +230,7 @@ export function useInformationValidation(): UseInformationValidationResult {
       // AFTER the (possibly long) engine run completes, mirroring
       // `useIDS.runValidation`'s `stillWantedValidation` guard (#2802).
       if (!stillWanted(myEpoch)) return;
-      setIdsValidationReport(report);
+      setIdsValidationReport(report, snapshot);
       setEditing(false);
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
@@ -232,6 +242,7 @@ export function useInformationValidation(): UseInformationValidationResult {
       // user-visible string and goes through the catalogue.
       setError(err instanceof Error ? err.message : t('validationPanel.error.validationFailed'));
     } finally {
+      if (abortRef.current === controller) abortRef.current = null;
       if (stillWanted(myEpoch)) {
         setRunning(false);
         setProgress(null);

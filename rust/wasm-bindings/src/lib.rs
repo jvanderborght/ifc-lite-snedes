@@ -67,12 +67,16 @@ pub use utils::stash_location_parts;
 pub use wasm_bindgen_rayon::init_thread_pool;
 
 mod api;
+#[cfg(feature = "opening-perf-trace")]
+mod opening_perf_trace;
 #[cfg(feature = "console-tracing")]
 mod tracing_console;
 mod utils;
 mod zero_copy;
 
 pub use api::IfcAPI;
+mod alignment_axis;
+pub use alignment_axis::AlignmentAxisJs;
 pub use utils::set_panic_hook as init_panic_hook;
 pub use zero_copy::{
     get_memory, MeshCollection, MeshDataJs, SymbolicCircle, SymbolicFillArea, SymbolicPolyline,

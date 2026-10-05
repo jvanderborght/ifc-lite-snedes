@@ -24,7 +24,10 @@ validation:
 # the next person finds it" are not the same thing.
 #
 # Declaring them here keeps `omitted_files: warn` meaningful for everything else.
+# The issue-scoped section implementation/acceptance record is linked from its
+# evidence README; keep it searchable without adding a temporary plan to site nav.
 not_in_nav: |
+  architecture/section-6614-6615-spec.md
   architecture/evidence/**
   research/**
 
@@ -140,6 +143,7 @@ nav:
   - Getting Started:
     - Installation: guide/installation.md
     - Quick Start: guide/quickstart.md
+    - Web Viewer Controls: guide/web-viewer-controls.md
     - CLI Toolkit: guide/cli.md
     - MCP for AI Agents: guide/mcp.md
     - 3D Viewer & Analysis: guide/viewer-api.md
@@ -184,6 +188,9 @@ nav:
     - Privacy: guide/privacy.md
   - Architecture:
     - Overview: architecture/overview.md
+    - Session Automation:
+        - Specification: architecture/session-automation-6612.md
+        - Implementation Plan: architecture/session-automation-6612-implementation.md
     - Data Flow: architecture/data-flow.md
     - Parsing Pipeline: architecture/parsing-pipeline.md
     - Geometry Pipeline: architecture/geometry-pipeline.md
@@ -191,6 +198,7 @@ nav:
     - Schema Enum Reconciliation: architecture/schema-enum-reconciliation.md
     - LandXML Interoperability: architecture/landxml-coverage-ledger.md
     - LandXML → IFC Mapping: architecture/landxml-to-ifc-mapping.md
+    - Speckle → IFC Mapping: architecture/speckle-mapping.md
     - Rendering Pipeline: architecture/rendering-pipeline.md
     - Relative-to-Eye Rendering: architecture/renderer-relative-to-eye.md
     - Coordinate Handling: architecture/coordinate-handling.md

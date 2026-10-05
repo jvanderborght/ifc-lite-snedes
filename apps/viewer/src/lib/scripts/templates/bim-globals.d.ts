@@ -126,6 +126,37 @@ interface BimFileAttachment {
   hasTextContent: boolean;
 }
 
+// ── Modelling operation types ─────────────────────────────────────────
+//
+// Extracted by the generator from the sources below — these declarations are
+// the engine's own text, not a copy maintained in the generator:
+//   packages/create/src/in-store/wall-join.ts
+//   packages/create/src/in-store/wall-join-apply.ts
+
+declare namespace BimCreate {
+  export interface WallJoinApplyOptions extends WallJoinOptions {
+    /** Layer priorities for the relationship, by wall. Default empty. */
+    priorities?: { a?: readonly number[]; b?: readonly number[] };
+    /** Name for the IfcRelConnectsPathElements. */
+    Name?: string;
+  }
+
+  export interface WallJoinOptions {
+    /**
+     * How far (metres, along each axis) an axis end may sit from the crossing and
+     * still count as joined there. Default twice the larger thickness, which
+     * covers a wall drawn to the other's face.
+     */
+    tolerance?: number;
+    /**
+     * Which wall runs through at an `L` corner, and is the relating wall of a
+     * `butt` join. Default: the thicker wall, `a` on a tie. Ignored for a `T`,
+     * where the path wall always runs through.
+     */
+    priority?: 'a' | 'b';
+  }
+}
+
 // ── Clash engine types ────────────────────────────────────────────────
 //
 // Extracted by the generator from the sources below — these declarations are
@@ -358,8 +389,9 @@ declare namespace BimClash {
    *   earlier "deepest crossing-triangle vertex" probe that was a sampling
    *   artifact, converging to 0 as a mesh was retessellated instead of to the
    *   true depth (PR #2536).
-   * - `'estimate'` — read off the two element AABBs: the smallest overlapping box
-   *   dimension. Reported for a hard clash whenever the narrow phase could not
+   * - `'estimate'` — an uncertified depth: the smallest overlapping dimension of
+   *   the two element AABBs, or for a box through-penetration that value capped
+   *   by the box-box minimum translation distance (see below). Reported for a hard clash whenever the narrow phase could not
    *   certify a box-box depth. That happens in four shapes, all common in real
    *   models: either element is not (confirmed) a box; surfaces that only
    *   coincide (stacked layers sharing a footprint); one solid modelled wholly
@@ -370,7 +402,9 @@ declare namespace BimClash {
    *   `'mesh'` for exactly that reason. The value is then a property of the two
    *   BOXES, not of the solids — it can equal an element's own thickness rather
    *   than how far the two actually interpenetrate. Treat it as an indication of
-   *   scale, not as a measurement.
+   *   scale, not as a measurement. For a through-penetration between two boxes
+   *   it never exceeds the box-box minimum translation distance, a distance
+   *   proven to separate them (#5742).
    */
   export type ClashDistanceKind = 'mesh' | 'estimate';
 }
@@ -819,6 +853,26 @@ declare const bim: {
     addPlate(modelId: string, storeyExpressId: number, params: { Position: [number, number, number]; Width: number; Depth: number; Thickness: number; Profile?: "rectangle"; PredefinedType?: string; Name?: string; Description?: string; ObjectType?: string; Tag?: string } | { Profile: "polygon"; OuterCurve: Array<[number, number]>; Position?: [number, number, number]; Thickness: number; PredefinedType?: string; Name?: string; Description?: string; ObjectType?: string; Tag?: string }): { modelId: string; expressId: number };
     /** Add an IfcMember (generic structural — brace, post, strut) from Start to End with a rectangular cross-section. */
     addMember(modelId: string, storeyExpressId: number, params: { Start: [number, number, number]; End: [number, number, number]; Width: number; Height: number; PredefinedType?: string; Name?: string; Description?: string; ObjectType?: string; Tag?: string }): { modelId: string; expressId: number };
+    /** Join two straight walls in the same placement frame through IfcRelConnectsPathElements. Uses the Model workspace core, preserving readable hosted openings and refusing a cut stranded by a joined end face. */
+    joinWalls(modelId: string, aExpressId: number, bExpressId: number, options?: BimCreate.WallJoinApplyOptions): { modelId: string; expressId: number };
+    /** Cut an IfcOpeningElement (IfcRelVoidsElement) into an existing IfcWall or IfcSlab. Metres, in the host placement frame. */
+    addOpening(modelId: string, hostExpressId: number, params: { Offset: number; Sill?: number; Width: number; Height: number; CutDepth?: number; Name?: string; Description?: string; ObjectType?: string; Tag?: string; GlobalId?: string } | { Position: [number, number]; Width: number; Depth: number; CutDepth?: number; Name?: string; Description?: string; ObjectType?: string; Tag?: string; GlobalId?: string }): { modelId: string; expressId: number };
+    /** Add an IfcDoor filling a new opening in an existing IfcWall (IfcRelFillsElement). Offset is along the wall axis to the door centre. */
+    addHostedDoor(modelId: string, hostExpressId: number, params: { Offset: number; Width: number; Height: number; CutDepth?: number; FrameThickness?: number; PredefinedType?: string; Name?: string; Description?: string; ObjectType?: string; Tag?: string; GlobalId?: string; Sill?: number; OperationType?: string; UserDefinedOperationType?: string }): { modelId: string; expressId: number };
+    /** Add an IfcWindow filling a new opening in an existing IfcWall (IfcRelFillsElement). Sill is the bottom edge height. */
+    addHostedWindow(modelId: string, hostExpressId: number, params: { Offset: number; Width: number; Height: number; CutDepth?: number; FrameThickness?: number; PredefinedType?: string; Name?: string; Description?: string; ObjectType?: string; Tag?: string; GlobalId?: string; Sill: number; PartitioningType?: string; UserDefinedPartitioningType?: string }): { modelId: string; expressId: number };
+    /** Add an IfcElementType subtype (Type: 'IfcWallType', 'IfcDoorType', ...), laid out for the model's schema. Enum values without dots. */
+    addElementType(modelId: string, params: { Type: string; Name: string; Description?: string; ApplicableOccurrence?: string; Tag?: string; ElementType?: string; PredefinedType?: string; OperationType?: string; UserDefinedOperationType?: string; PartitioningType?: string; UserDefinedPartitioningType?: string; ParameterTakesPrecedence?: boolean; GlobalId?: string }): { modelId: string; expressId: number };
+    /** Type objects via IfcRelDefinesByType; an object already typed moves to this type. Returns the relationship. */
+    assignType(modelId: string, typeExpressId: number, objectExpressIds: number[]): { modelId: string; expressId: number };
+    /** Add an IfcMaterial. */
+    addMaterial(modelId: string, params: { Name: string; Description?: string; Category?: string }): { modelId: string; expressId: number };
+    /** Add an IfcMaterialLayerSet with one IfcMaterialLayer per entry (LayerThickness in metres). */
+    addMaterialLayerSet(modelId: string, params: { MaterialLayers: { Material?: number; LayerThickness: number; IsVentilated?: boolean; Name?: string; Description?: string; Category?: string; Priority?: number }[]; LayerSetName?: string; Description?: string }): { modelId: string; expressId: number };
+    /** Add an IfcMaterialLayerSetUsage (default AXIS2 / POSITIVE; OffsetFromReferenceLine in metres). */
+    addMaterialLayerSetUsage(modelId: string, params: { ForLayerSet: number; LayerSetDirection?: 'AXIS1' | 'AXIS2' | 'AXIS3'; DirectionSense?: 'POSITIVE' | 'NEGATIVE'; OffsetFromReferenceLine: number; ReferenceExtent?: number }): { modelId: string; expressId: number };
+    /** Associate a material with objects via IfcRelAssociatesMaterial, replacing their previous one. Returns the relationship. */
+    assignMaterial(modelId: string, materialExpressId: number, objectExpressIds: number[]): { modelId: string; expressId: number };
     /** Add an IfcCostSchedule to a parsed model. */
     addCostSchedule(modelId: string, params: BimCost.CostScheduleParams): { modelId: string; expressId: number };
     /** Add an IfcCostItem to a parsed model. */
@@ -1051,5 +1105,10 @@ declare const bim: {
     ifc(entities?: BimEntity[], options?: { schema?: "IFC2X3" | "IFC4" | "IFC4X3"; filename?: string; includeMutations?: boolean; visibleOnly?: boolean }): string | Uint8Array;
     /** Trigger a browser file download with the given content. mimeType defaults to text/plain. */
     download(content: string, filename: string, mimeType?: string): void;
+  };
+  /** Outbound HTTP requests, restricted to https: hosts covered by a granted network.fetch:<host> capability. */
+  network: {
+    /** Fetch an https: URL. `options.method` is GET (default) or POST; `options.headers`/`body` are optional. Throws if the host is not granted or the response exceeds the byte cap. */
+    fetch(url: string, options?: { method?: "GET" | "POST"; headers?: Record<string, string>; body?: string; timeoutMs?: number; maxBytes?: number }): Promise<{ status: number; headers: Record<string, string>; body: string; truncated: boolean }>;
   };
 };

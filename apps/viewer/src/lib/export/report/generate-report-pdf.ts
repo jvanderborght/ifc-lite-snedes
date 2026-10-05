@@ -12,6 +12,7 @@
  * is drawn where, that a failed snapshot does not abort the report — runs
  * under node:test against a recording document.
  */
+import { tableHeaderStyle, type TableHeaderStyle } from '../../table-header-style';
 import { renderChartSvg, type Aggregation, type ChartTheme, DEFAULT_THEME } from '@ifc-lite/charts';
 import { composeReport, REPORT_MARGIN, type ComposeReportInput, type ReportChartBlock, type ReportLayout } from './compose.js';
 import type { SnapshotCapture } from './snapshots.js';
@@ -21,8 +22,10 @@ export interface ReportDoc {
   addPage: (format: 'a4' | 'a3', orientation: 'portrait' | 'landscape') => void;
   setFont: (family: string, style: 'normal' | 'bold') => void;
   setFontSize: (size: number) => void;
-  setTextColor: (gray: number) => void;
+  setTextColor: (grayOrRgb: number | string) => void;
   text: (text: string, x: number, y: number) => void;
+  /** Paint a solid RGB rectangle directly, without DOM/SVG conversion (#6492). */
+  fillRect: (x: number, y: number, w: number, h: number, color: string) => void;
   /** Width of `text` in the current font and size, in points; a document wraps with it. */
   textWidth?: (text: string) => number;
   addImage: (bytes: Uint8Array, format: 'PNG' | 'JPEG', x: number, y: number, w: number, h: number) => void;
@@ -45,11 +48,12 @@ export interface ReportTableArgs {
   columns?: Array<{ width: number; align: 'left' | 'right' }>;
   /** Parallel to `body`; a row with no entry is a data row. */
   rowRoles?: ReportTableRowRole[];
+  headerStyle?: TableHeaderStyle;
 }
 
 export interface ReportPdfSeams {
   createDoc: (format: 'a4' | 'a3', orientation: 'portrait' | 'landscape') => Promise<ReportDoc>;
-  renderSvg: (aggregation: Aggregation, width: number, height: number, theme: ChartTheme) => string;
+  renderSvg: (aggregation: Aggregation, width: number, height: number, theme: ChartTheme, fontSize?: number) => string;
   /** `null` when no renderer is available; snapshots are then skipped. */
   capture: SnapshotCapture | null;
   theme: ChartTheme;
@@ -98,8 +102,12 @@ export async function browserReportSeams(capture: SnapshotCapture | null, theme:
         addPage: (f, o) => { doc.addPage(f, o); },
         setFont: (family, style) => { doc.setFont(family, style); },
         setFontSize: (size) => { doc.setFontSize(size); },
-        setTextColor: (gray) => { doc.setTextColor(gray); },
+        setTextColor: (grayOrRgb) => {
+          if (typeof grayOrRgb === 'string') doc.setTextColor(grayOrRgb);
+          else doc.setTextColor(grayOrRgb);
+        },
         text: (t, x, y) => { doc.text(t, x, y); },
+        fillRect: (x, y, w, h, color) => { doc.setFillColor(color); doc.rect(x, y, w, h, 'F'); },
         textWidth: (t) => doc.getTextWidth(t),
         addImage: (bytes, format, x, y, w, h) => { doc.addImage(bytes, format, x, y, w, h); },
         svg: async (svg, x, y, w, h) => {
@@ -119,7 +127,8 @@ export async function browserReportSeams(capture: SnapshotCapture | null, theme:
             host.remove();
           }
         },
-        table: ({ startY, margin, head, body, columns, rowRoles }) => {
+        table: ({ startY, margin, head, body, columns, rowRoles, headerStyle }) => {
+          const palette = headerStyle ?? tableHeaderStyle();
           const columnStyles: Record<number, { halign?: 'left' | 'right'; cellWidth?: number }> = columns
             ? Object.fromEntries(columns.map((c, i) => [i, { halign: c.align, cellWidth: c.width }]))
             : { 1: { halign: 'right' }, 2: { halign: 'right' } };
@@ -128,7 +137,7 @@ export async function browserReportSeams(capture: SnapshotCapture | null, theme:
             // `pageBreak: 'avoid'` is the belt to `AUTOTABLE_ROW_HEIGHT`: the document composer only
             // ever hands over a chunk that fits.
             styles: { fontSize: 8, cellPadding: 2, minCellHeight: AUTOTABLE_ROW_HEIGHT, overflow: 'ellipsize', lineColor: [226, 232, 240], lineWidth: 0.5 },
-            headStyles: { fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold' },
+            headStyles: { fillColor: palette.backgroundColor, textColor: palette.textColor, fontStyle: 'bold' },
             columnStyles,
             pageBreak: columns ? 'avoid' : 'auto',
             didParseCell: rowRoles
@@ -152,7 +161,7 @@ export async function browserReportSeams(capture: SnapshotCapture | null, theme:
     },
     // `print: true` (#4940): the printed SVG has no interactive scroll, so a
     // pie's legend switches to a wrapped plain layout instead of clipping.
-    renderSvg: (aggregation, width, height, t) => renderChartSvg({ aggregation, width, height, theme: t, showTitle: false, print: true }),
+    renderSvg: (aggregation, width, height, t, fontSize) => renderChartSvg({ aggregation, width, height, fontSize, theme: t, showTitle: false, print: true }),
     capture,
     theme,
     now: () => new Date(),

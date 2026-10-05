@@ -5,18 +5,18 @@
 /**
  * One chart on the dashboard: title bar, the ECharts host, and the three
  * things a card can do — select buckets in 3D, frame them, be edited /
- * removed. The aggregation is the card's, computed over the dashboard's
+ * duplicated / removed. The aggregation is the card's, computed over the dashboard's
  * dataset and the cross-chart slice (a chart never filters itself).
  */
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Crosshair, Pencil, X } from 'lucide-react';
+import { Copy, Crosshair, Pencil, X } from 'lucide-react';
 import { aggregate, buildEChartsOption, type Aggregation, type ChartDataset, type ChartSource, type ChartSpec, type PaletteAssignment } from '@ifc-lite/charts';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useViewerStore } from '@/store';
 import { applyChartFilter, applyClashRuleFilter, chartElementFilterKey } from '@/lib/charts/source-filter';
 import { countRows } from '@/lib/charts/row-noun';
-import { readChartTheme, useEChart, type ChartRenderer, type ChartSelectEvent } from './useEChart';
+import { readChartTheme, useEChart, type ChartRenderer, type ChartSize, type ChartSelectEvent } from './useEChart';
 import { GRID_DRAG_HANDLE_CLASS } from './DashboardGrid';
 import { chartBucketIdentity, chartSelectionIsLive, sameChartBucketIdentity, type Chart3DLink } from './useChart3DLink';
 import type { ChartSourceFilterState } from './useChartSourceFilters';
@@ -30,6 +30,7 @@ export interface ChartCardProps {
   link: Chart3DLink;
   renderer?: ChartRenderer;
   onEdit: () => void;
+  onDuplicate: () => void;
   onRemove: () => void;
   /** The card's aggregation, so the panel can drive the colour overlay from it. */
   onAggregation?: (spec: ChartSpec, aggregation: Aggregation | null) => void;
@@ -79,7 +80,7 @@ export const EMPTY_HINTS: Record<ChartSource, string> = {
   compare: 'No comparison yet — compare two models (Analyze › Compare).',
 };
 
-export function ChartCard({ spec, dataset, filterState, link, renderer, onEdit, onRemove, onAggregation }: ChartCardProps) {
+export function ChartCard({ spec, dataset, filterState, link, renderer, onEdit, onDuplicate, onRemove, onAggregation }: ChartCardProps) {
   const { t } = useTranslation();
   const chartSlice = useViewerStore((s) => s.chartSlice);
   const chartSliceSource = useViewerStore((s) => s.chartSliceSource);
@@ -137,11 +138,11 @@ export function ChartCard({ spec, dataset, filterState, link, renderer, onEdit, 
 
   const selection = useMemo(() => (aggregation ? link.selectionFor(aggregation) : { full: [], partial: [] }), [aggregation, link]);
 
-  const option = useCallback((width: number) => {
+  const option = useCallback(({ width, height }: ChartSize) => {
     if (!aggregation) return null;
     // `theme` in the deps re-reads the stylesheet tokens on a light/dark switch.
     void theme;
-    return buildEChartsOption({ aggregation, theme: readChartTheme(), selected: selection.full, width: width || undefined });
+    return buildEChartsOption({ aggregation, theme: readChartTheme(), selected: selection.full, width: width || undefined, height: height || undefined });
   }, [aggregation, selection.full, theme]);
 
   const onSelect = useCallback((event: ChartSelectEvent) => {
@@ -178,13 +179,16 @@ export function ChartCard({ spec, dataset, filterState, link, renderer, onEdit, 
       <div className="flex items-center gap-1 px-2 py-1 border-b border-border/60 text-xs">
         <div className={`min-w-0 flex-1 cursor-grab active:cursor-grabbing select-none ${GRID_DRAG_HANDLE_CLASS}`} title={t('chartCard.dragToMoveTitle')}>
           <div className="font-medium truncate" title={spec.title}>{spec.title}</div>
-          <div className="text-[10px] text-muted-foreground truncate" data-chart-subtitle>{subtitle}</div>
+          <div className="text-2xs text-muted-foreground truncate" data-chart-subtitle>{subtitle}</div>
         </div>
         <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title={t('chartCard.frameTitle')} onClick={frame} aria-label={t('chartCard.frameAriaLabel', { title: spec.title })}>
           <Crosshair className="h-3.5 w-3.5" />
         </Button>
         <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title={t('chartCard.editChartTitle')} onClick={onEdit} aria-label={t('chartCard.editAriaLabel', { title: spec.title })}>
           <Pencil className="h-3.5 w-3.5" />
+        </Button>
+        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title={t('chartCard.duplicateChartTitle')} onClick={onDuplicate} aria-label={t('chartCard.duplicateAriaLabel', { title: spec.title })}>
+          <Copy className="h-3.5 w-3.5" />
         </Button>
         <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title={t('chartCard.removeChartTitle')} onClick={onRemove} aria-label={t('chartCard.removeAriaLabel', { title: spec.title })}>
           <X className="h-3.5 w-3.5" />

@@ -12,7 +12,7 @@
  * Dashboards persist in localStorage; the first open seeds "Model overview".
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BarChart3, Plus, X } from 'lucide-react';
+import { BarChart3, Plus } from 'lucide-react';
 import { chartElementFilterKey } from '@/lib/charts/source-filter';
 import { elementFieldColumnId, type Aggregation, type ChartScope, type ChartSpec, type DashboardLayoutItem, type DashboardSpec } from '@ifc-lite/charts';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { useViewerStore } from '@/store';
 import { chartElementFields } from '@/lib/charts/chart-fields';
 import type { ChartFocusMode } from '@/store/slices/chartSlice';
-import { DASHBOARD_PRESETS, modelOverviewDashboard, newChartSpec } from '@/lib/charts/presets';
+import { DASHBOARD_PRESETS, duplicateChart, modelOverviewDashboard, newChartSpec } from '@/lib/charts/presets';
 import { ChartCard } from './ChartCard';
 import { ChartEditor, type ClashRuleOption } from './ChartEditor';
 import { DashboardGrid } from './DashboardGrid';
@@ -38,7 +38,6 @@ const SCOPE_LABEL: Record<ChartScope['kind'], string> = { all: 'All models', vis
 const EMPTY_CLASH_RULES: readonly ClashRuleOption[] = [];
 
 export interface ChartsPanelProps {
-  onClose?: () => void;
   /** Injectable chart renderer; tests pass a recorder, the app uses ECharts. */
   renderer?: ChartRenderer;
   /** Injectable PDF seams for the report export; the app uses jsPDF + the live renderer. */
@@ -62,7 +61,7 @@ export function ensureActiveDashboard(): void {
   }
 }
 
-export function ChartsPanel({ onClose, renderer, reportSeams }: ChartsPanelProps) {
+export function ChartsPanel({ renderer, reportSeams }: ChartsPanelProps) {
   const { t } = useTranslation();
   const dashboards = useViewerStore((s) => s.dashboards);
   const activeDashboardId = useViewerStore((s) => s.activeDashboardId);
@@ -158,6 +157,16 @@ export function ChartsPanel({ onClose, renderer, reportSeams }: ChartsPanelProps
     if (!dashboard) return;
     update({ ...dashboard, charts: dashboard.charts.filter((c) => c.id !== id), layout: dashboard.layout.filter((l) => l.chartId !== id) });
   }, [dashboard, update]);
+  // Copy, save, and open the copy in the editor — the point is to tweak it.
+  const duplicateChartById = useCallback((id: string) => {
+    if (!dashboard) return;
+    const source = dashboard.charts.find((c) => c.id === id);
+    if (!source) return;
+    const result = duplicateChart(dashboard, id, t('chartCard.copyName', { name: source.title }));
+    if (!result) return;
+    update(result.dashboard);
+    setEditing(result.chart);
+  }, [dashboard, t, update]);
   const setScope = useCallback((kind: ChartScope['kind']) => {
     if (!dashboard) return;
     update({ ...dashboard, scope: { kind } });
@@ -178,11 +187,12 @@ export function ChartsPanel({ onClose, renderer, reportSeams }: ChartsPanelProps
         link={link}
         renderer={renderer}
         onEdit={() => setEditing(spec)}
+        onDuplicate={() => duplicateChartById(spec.id)}
         onRemove={() => removeChart(spec.id)}
         onAggregation={onAggregation}
       />
     );
-  }, [dashboard, datasets, sourceFilters, link, renderer, removeChart, onAggregation]);
+  }, [dashboard, datasets, sourceFilters, link, renderer, duplicateChartById, removeChart, onAggregation]);
 
   const select = 'min-w-0 rounded border border-border bg-transparent px-1.5 py-0.5';
 
@@ -239,17 +249,13 @@ export function ChartsPanel({ onClose, renderer, reportSeams }: ChartsPanelProps
             {t('chartsPanel.addChartButton')}
           </Button>
           <ReportExportDialog dashboard={dashboard} aggregations={aggregations} onSaveReportSetup={upsertDashboard} seams={reportSeams} />
-          {onClose && (
-            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={onClose} aria-label={t('chartsPanel.closeAriaLabel')}>
-              <X className="h-3.5 w-3.5" />
-            </Button>
-          )}
         </div>
       </div>
 
       {editing && (
         <div className="border-b border-border bg-muted/20">
           <ChartEditor
+            key={editing.id}
             spec={editing}
             datasets={datasets}
             elementFieldCatalog={fieldCatalog.catalog}

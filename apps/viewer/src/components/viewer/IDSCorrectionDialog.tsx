@@ -25,8 +25,9 @@
  * left to silently skip at apply time.
  */
 
-import { useCallback, useMemo, useState } from 'react';
-import { AlertCircle, Check, Loader2, Wrench } from 'lucide-react';
+import { useCallback, useId, useMemo, useState } from 'react';
+import { AlertCircle, Check, Wrench } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import { useTranslation } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,7 +58,6 @@ import {
 import { MutablePropertyView } from '@ifc-lite/mutations';
 import { scaleCorrectionForWrite } from '@/hooks/ids/idsCorrectionScale';
 import type { IDSEntityResult, IDSSpecificationResult } from '@ifc-lite/ids';
-
 /**
  * The set of requirements in a spec that are structurally correctable
  * (exact-name scalar property facet) and have at least one failing entity.
@@ -161,9 +161,9 @@ export function IDSCorrectionDialog({
 
   const [requirementId, setRequirementId] = useState<string | null>(correctable[0]?.requirementId ?? null);
   const activeRequirement = correctable.find((r) => r.requirementId === requirementId) ?? correctable[0] ?? null;
-
   const [selectedIds, setSelectedIds] = useState<Set<number> | null>(null);
   const [rawValue, setRawValue] = useState('');
+  const newValueInputId = useId();
   const [applying, setApplying] = useState(false);
   const [results, setResults] = useState<CorrectionApplyResult[] | null>(null);
   const [applyError, setApplyError] = useState<string | null>(null);
@@ -326,7 +326,7 @@ export function IDSCorrectionDialog({
             {correctable.length > 1 && (
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">{t('idsPanel.correction.requirement')}</Label>
-                <select
+                <select aria-label={t('idsPanel.correction.requirement')}
                   className="w-full rounded border border-border bg-transparent px-2 py-1 text-sm"
                   value={activeRequirement.requirementId}
                   onChange={(e) => {
@@ -349,8 +349,8 @@ export function IDSCorrectionDialog({
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">{t('idsPanel.correction.newValue')}</Label>
-              <Input
+              <Label htmlFor={newValueInputId} className="text-xs text-muted-foreground">{t('idsPanel.correction.newValue')}</Label>
+              <Input id={newValueInputId}
                 value={rawValue}
                 onChange={(e) => setRawValue(e.target.value)}
                 placeholder={t('idsPanel.correction.newValuePlaceholder')}
@@ -422,7 +422,7 @@ export function IDSCorrectionDialog({
             onClick={() => { void handleApply(); }}
             disabled={!activeRequirement || !dataStore || applying || rawValue.trim().length === 0 || effectiveSelection.size === 0}
           >
-            {applying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Wrench className="h-4 w-4 mr-2" />}
+            {applying ? <Spinner size="md" className="mr-2" /> : <Wrench className="h-4 w-4 mr-2" />}
             {t('idsPanel.correction.applyTo', { count: effectiveSelection.size })}
           </Button>
         </DialogFooter>

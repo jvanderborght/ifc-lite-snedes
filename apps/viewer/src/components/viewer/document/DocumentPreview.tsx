@@ -8,20 +8,26 @@
  * SSR SVG the PDF gets; an unresolved binding is marked in place, never
  * printed as an empty string.
  */
+import { blockTitle, BLOCK_TITLE_HEIGHT } from '@/lib/document/block-title';
 import { useMemo, useState } from 'react';
-import { renderChartSvg, type Aggregation } from '@ifc-lite/charts';
+import { chartFontScale, renderChartSvg, type Aggregation } from '@ifc-lite/charts';
 import type { BCFTopic } from '@ifc-lite/bcf';
 import { useTranslation } from '@/i18n';
 import { renderTemplate, type BindingContext } from '@/lib/document/bindings';
 import { REPORT_THEME } from '@/lib/export/report/generate-report-pdf';
 import { topicLines, topicSnapshotDataUrl } from '@/lib/document/generate-document-pdf';
 import { pageBox, REPORT_MARGIN } from '@/lib/export/report/compose';
-import { BLOCK_GAP, documentChartSizing, halfTextFitsPage, TEXT_STYLES } from '@/lib/document/compose';
+import { DOCUMENT_FONT_FAMILIES } from '@/lib/document/text-typography';
+import { pageHeadingStyle } from '@/lib/document/page-heading';
+import { BLOCK_GAP, documentChartSizing, documentImageHeight, halfTextFitsPage, TEXT_STYLES } from '@/lib/document/compose';
 import { CHART_BLOCK_HEIGHT_DEFAULT, isHalfPairable, type DocumentBlock, type DocumentSpec, type TextBlock } from '@/lib/document/types';
 import type { TableState } from '@/lib/document/resolve-table';
+import { TAB_SIZE } from '@/lib/document/text-tabs';
+import { splitDocumentSections } from '@/lib/document/page-sections';
 import { DOCUMENT_PREVIEW_MUTED_TEXT_CLASS, DOCUMENT_PREVIEW_PAPER_CLASS } from './preview-theme';
 import { TablePreview } from './TablePreview';
 import { IdsReportPreview } from './IdsReportPreview';
+import { ManualReportPreview } from './ManualReportPreview';
 
 export interface DocumentPreviewProps {
   document: DocumentSpec;
@@ -41,16 +47,16 @@ const TEXT_CLASS: Record<TextBlock['style'], string> = {
   title: 'text-2xl font-semibold leading-tight',
   heading: 'text-base font-semibold mt-2',
   subheading: 'text-sm font-semibold mt-1',
-  body: 'text-sm leading-relaxed whitespace-pre-wrap',
-  small: 'text-[11px] leading-relaxed whitespace-pre-wrap',
-  caption: 'text-[10px] text-neutral-500 whitespace-pre-wrap',
+  body: 'text-sm leading-relaxed',
+  small: 'text-2xs leading-relaxed',
+  caption: 'text-2xs text-neutral-500',
 };
 
 /** Consecutive text/chart/image blocks both at `width: 'half'` render two-up (#4940). */
-function groupBlocks(blocks: readonly DocumentBlock[], bindings: BindingContext, pageHeight: number, contentWidth: number): Array<DocumentBlock | [DocumentBlock, DocumentBlock]> {
+function groupBlocks(blocks: readonly DocumentBlock[], bindings: BindingContext, pageHeight: number, contentWidth: number, headingExtraHeight = 0): Array<DocumentBlock | [DocumentBlock, DocumentBlock]> {
   const groups: Array<DocumentBlock | [DocumentBlock, DocumentBlock]> = [];
   const colW = (contentWidth - BLOCK_GAP) / 2;
-  const fits = (block: DocumentBlock): boolean => block.kind !== 'text' || halfTextFitsPage({ ...block, text: renderTemplate(block.text, bindings).text }, pageHeight, colW);
+  const fits = (block: DocumentBlock): boolean => block.kind !== 'text' || halfTextFitsPage({ ...block, text: renderTemplate(block.text, bindings).text }, pageHeight, colW, headingExtraHeight);
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i];
     const next = blocks[i + 1];
@@ -88,11 +94,14 @@ function ResolvedText({ text, bindings }: { text: string; bindings: BindingConte
   );
 }
 
-function ChartSvg({ aggregation, message, width, height }: { aggregation: Aggregation | null; message: string | undefined; width: number; height: number }) {
+function ChartSvg({ aggregation, message, width, height, fontSize, scale }: { aggregation: Aggregation | null; message: string | undefined; width: number; height: number; fontSize?: number; scale: number }) {
   const { t } = useTranslation();
+  // Custom typography uses the PDF's point-space layout, then scales the whole
+  // vector to the sheet. Keep the established default preview unchanged (#6546).
+  const renderScale = chartFontScale(fontSize) === 1 ? 1 : scale;
   const svg = useMemo(() => (aggregation && aggregation.categories.length > 0
-    ? renderChartSvg({ aggregation, width, height, theme: REPORT_THEME, showTitle: false, print: true })
-    : null), [aggregation, width, height]);
+    ? renderChartSvg({ aggregation, width: width / renderScale, height: height / renderScale, fontSize, theme: REPORT_THEME, showTitle: false, print: true })
+    : null), [aggregation, width, height, fontSize, renderScale]);
   if (!svg) {
     return (
       <div className="flex items-center justify-center rounded border border-dashed border-neutral-300 px-3 text-center text-xs text-neutral-500" style={{ height: Math.max(48, height) }} data-chart-empty>
@@ -101,7 +110,7 @@ function ChartSvg({ aggregation, message, width, height }: { aggregation: Aggreg
     );
   }
   // The SVG string is ECharts' own output over data we aggregated; nothing user-authored is in it.
-  return <div className="w-full overflow-hidden" dangerouslySetInnerHTML={{ __html: svg }} data-chart-svg />;
+  return <div className={`w-full overflow-hidden${renderScale === 1 ? '' : ' [&_svg]:h-auto [&_svg]:w-full'}`} dangerouslySetInnerHTML={{ __html: svg }} data-chart-svg />;
 }
 
 /** Mirrors PDF image sizing once the browser has measured the data URL's intrinsic ratio. */
@@ -114,31 +123,42 @@ function PreviewImage({ dataUrl, alt, height, contentWidth }: { dataUrl: string;
   }} />;
 }
 
-function Block({ block, bindings, aggregation, chartMessage, topic, table, contentWidth, scale, pageHeight }: { block: DocumentBlock; bindings: BindingContext; aggregation: Aggregation | null; chartMessage: string | undefined; topic: BCFTopic | undefined; table: TableState | undefined; contentWidth: number; scale: number; pageHeight: number }) {
+function Block({ block, bindings, aggregation, chartMessage, topic, table, contentWidth, scale, pageHeight, headingExtraHeight }: { block: DocumentBlock; bindings: BindingContext; aggregation: Aggregation | null; chartMessage: string | undefined; topic: BCFTopic | undefined; table: TableState | undefined; contentWidth: number; scale: number; pageHeight: number; headingExtraHeight: number }) {
   const { t } = useTranslation();
   switch (block.kind) {
     case 'text':
-      return <div className={TEXT_CLASS[block.style]} style={{ fontSize: (block.fontSize ?? TEXT_STYLES[block.style].size) * scale, fontFamily: block.font === 'times' ? 'Times New Roman, serif' : block.font === 'courier' ? 'Courier New, monospace' : 'Helvetica, Arial, sans-serif' }} data-block-text>{block.text.trim() ? <ResolvedText text={block.text} bindings={bindings} /> : <span className={DOCUMENT_PREVIEW_MUTED_TEXT_CLASS}>{t('document.preview.textEmpty')}</span>}</div>;
+      // Every style keeps the text as typed, like the PDF's `wrapText` (#6370): line breaks,
+      // tab indents (same tab stop as the PDF) and runs of spaces. Title, heading and subheading
+      // once collapsed a typed line break into a space.
+      return <div>{blockTitle(block) && <div className="truncate font-semibold" style={{ fontSize: 11 * scale, height: BLOCK_TITLE_HEIGHT * scale }} title={blockTitle(block)}>{blockTitle(block)}</div>}
+        <div className={TEXT_CLASS[block.style]} style={{ color: block.textColor, backgroundColor: block.backgroundColor, whiteSpace: 'pre-wrap', tabSize: TAB_SIZE, fontSize: (block.fontSize ?? TEXT_STYLES[block.style].size) * scale, fontFamily: DOCUMENT_FONT_FAMILIES[block.font ?? 'helvetica'] }} data-block-text>{block.text.trim() ? <ResolvedText text={block.text} bindings={bindings} /> : <span className={DOCUMENT_PREVIEW_MUTED_TEXT_CLASS}>{t('document.preview.textEmpty')}</span>}</div></div>;
+
     case 'image': {
+      const title = blockTitle(block);
+      const height = (title || headingExtraHeight > 0 ? documentImageHeight(block, pageHeight, headingExtraHeight) : block.height) * scale;
       const justify = block.align === 'left' ? 'justify-start' : block.align === 'right' ? 'justify-end' : 'justify-center';
       return (
         <figure className={`flex flex-col ${block.align === 'center' ? 'items-center' : block.align === 'right' ? 'items-end' : 'items-start'}`}>
+          {title && <div className="w-full truncate font-semibold" style={{ fontSize: 11 * scale, height: BLOCK_TITLE_HEIGHT * scale }} title={title}>{title}</div>}
           <div className={`flex w-full ${justify}`}>
             {block.dataUrl
-              ? <PreviewImage key={block.dataUrl} dataUrl={block.dataUrl} alt={block.caption ?? ''} height={block.height * scale} contentWidth={contentWidth} />
-              : <div className="flex items-center justify-center rounded border border-dashed border-neutral-300 px-3 text-xs text-neutral-500" style={{ height: block.height * scale, minWidth: 80 }}>{t('document.preview.imageEmpty')}</div>}
+              ? <PreviewImage key={block.dataUrl} dataUrl={block.dataUrl} alt={block.caption ?? ''} height={height} contentWidth={contentWidth} />
+              : <div className="flex items-center justify-center rounded border border-dashed border-neutral-300 px-3 text-xs text-neutral-500" style={{ height, minWidth: 80 }}>{t('document.preview.imageEmpty')}</div>}
           </div>
-          {block.caption && <figcaption className="text-[10px] text-neutral-500">{block.caption}</figcaption>}
+          {block.caption && <figcaption className="text-2xs text-neutral-500">{block.caption}</figcaption>}
         </figure>
       );
     }
     case 'chart': {
+      const textScale = chartFontScale(block.fontSize);
       const { height: chartHeight } = documentChartSizing({
         requestedHeight: block.height ?? CHART_BLOCK_HEIGHT_DEFAULT,
+        headingExtraHeight,
         pageHeight,
         boxWidth: contentWidth / scale,
         snapshot: block.snapshot,
         hasData: Boolean(aggregation && aggregation.categories.length > 0),
+        fontSize: block.fontSize,
       });
       const height = chartHeight * scale;
       // Computed once, not repeated as a JSX-expression literal in both the visible text and its
@@ -148,13 +168,14 @@ function Block({ block, bindings, aggregation, chartMessage, topic, table, conte
       return (
         <div>
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold" title={block.chart.title}>{block.chart.title}</div>
-            <div className="truncate text-[10px] text-neutral-500" title={subtitle}>{subtitle}</div>
+            <div className="truncate text-sm font-semibold" title={blockTitle(block, block.chart.title)} style={textScale === 1 ? undefined : { fontSize: 11 * textScale * scale, lineHeight: `${16 * textScale * scale}px` }}>{blockTitle(block, block.chart.title)}</div>
+            <div className="truncate text-2xs text-neutral-500" title={subtitle} style={textScale === 1 ? undefined : { fontSize: 8 * textScale * scale, lineHeight: `${16 * textScale * scale}px` }}>{subtitle}</div>
           </div>
-          <ChartSvg aggregation={aggregation} message={chartMessage} width={contentWidth} height={height} />
+          <ChartSvg aggregation={aggregation} message={chartMessage} width={contentWidth} height={height} fontSize={block.fontSize} scale={scale} />
         </div>
       );
     }
+    case 'page-break': return null;
     case 'spacer':
       // The flex column's own `gap-2.5` (10px) already sits on both sides of this block, but
       // compose.ts (and every other block here) only ever adds one trailing gap per block — a
@@ -165,13 +186,15 @@ function Block({ block, bindings, aggregation, chartMessage, topic, table, conte
       return <TablePreview block={block} state={table} />;
     case 'ids-report':
       return <IdsReportPreview block={block} />;
+    case 'manual-report':
+      return <ManualReportPreview block={block} />;
     case 'topic': {
-      if (!topic) return <div className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-900" data-unresolved>{t('document.preview.topicNotLoaded', { guid: block.guid })}</div>;
+      if (!topic) return <div>{blockTitle(block) && <div className="truncate text-sm font-semibold">{blockTitle(block)}</div>}<div className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-900" data-unresolved>{t('document.preview.topicNotLoaded', { guid: block.guid })}</div></div>;
       const snapshot = block.snapshot ? topicSnapshotDataUrl(topic) : null;
       return (
         <div className="flex gap-3">
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold">{topic.title}</div>
+            <div className={`${blockTitle(block) ? 'truncate ' : ''}text-sm font-semibold`} title={blockTitle(block) || undefined}>{blockTitle(block, topic.title)}</div>
             {topicLines(topic).map((line, i) => <div key={i} className="text-xs text-neutral-700">{line}</div>)}
           </div>
           {snapshot && <img src={snapshot} alt="" className="h-28 rounded border border-neutral-200 object-cover" />}
@@ -192,32 +215,53 @@ export function DocumentPreview({ document, bindings, aggregations, chartMessage
   // `contentWidth`, which is narrower than the page for a half-width column (review finding: a
   // landscape or half-width block was rendered off the PDF's actual scale).
   const scale = width / size.w;
+  const heading = document.pageHeading;
+  const headingStyle = pageHeadingStyle(heading);
+  const headingExtraHeight = headingStyle.extraHeight;
+  const sections = splitDocumentSections(document.blocks);
   return (
-    <div className="flex justify-center p-3" data-document-preview>
-      <div
+    <div className="flex flex-col items-center gap-4 p-3" data-document-preview>
+      {sections.map((blocks, pageIndex) => <section
+        key={blocks[0]?.id ?? 'empty'}
+        data-preview-section={pageIndex + 1}
+        aria-label={t('document.preview.sectionLabel', { section: String(pageIndex + 1) })}
         className={`${DOCUMENT_PREVIEW_PAPER_CLASS} shadow-md`}
         style={{ width, minHeight: width * (size.h / size.w), padding: `${(40 / size.w) * width}px`, fontFamily: 'Helvetica, Arial, sans-serif' }}
       >
-        <div className={`mb-3 text-[9px] ${DOCUMENT_PREVIEW_MUTED_TEXT_CLASS}`}>{document.name}</div>
+        <div data-page-heading title={heading?.text ?? document.name}
+          className={`mb-3 ${heading ? 'truncate' : ''} text-2xs ${DOCUMENT_PREVIEW_MUTED_TEXT_CLASS}`}
+          style={heading ? { color: headingStyle.textColor, fontFamily: DOCUMENT_FONT_FAMILIES[headingStyle.font],
+            fontSize: headingStyle.fontSize * scale, lineHeight: 1.25, minHeight: headingStyle.fontSize * 1.25 * scale } : undefined}
+        >{heading?.text ?? document.name}</div>
         <div className="flex flex-col gap-2.5">
-          {groupBlocks(document.blocks, bindings, size.h, size.w - 2 * REPORT_MARGIN).map((group) => {
+          {groupBlocks(blocks, bindings, size.h, size.w - 2 * REPORT_MARGIN, headingExtraHeight).map((group) => {
             const wrap = (block: DocumentBlock) => (
-              <div
+              /* DocumentBlock renders figures and divs, which cannot be nested in a button. */
+              // eslint-disable-next-line jsx-a11y/prefer-tag-over-role
+              <div role="button"
                 key={block.id}
+                aria-label={block.kind === 'spacer' ? t('document.addBlock.spacer') : block.kind === 'image' && !block.caption ? t('document.addBlock.image') : undefined}
+                tabIndex={0}
                 className={`-mx-1 cursor-pointer rounded px-1 ring-offset-1 hover:ring-1 hover:ring-sky-300 ${selectedBlockId === block.id ? 'ring-1 ring-sky-500' : ''}`}
                 onClick={() => onSelectBlock(block.id)}
+                onKeyDown={(event) => {
+                  if (event.currentTarget === event.target && (event.key === 'Enter' || event.key === ' ')) {
+                    event.preventDefault();
+                    onSelectBlock(block.id);
+                  }
+                }}
                 data-preview-block={block.id}
               >
-                <Block block={block} bindings={bindings} aggregation={aggregations.get(block.id) ?? null} chartMessage={chartMessages.get(block.id)} topic={block.kind === 'topic' ? topics.get(block.guid) : undefined} table={tables?.get(block.id)} contentWidth={Array.isArray(group) ? (contentWidth - BLOCK_GAP * scale) / 2 : contentWidth} scale={scale} pageHeight={size.h} />
+                <Block block={block} bindings={bindings} aggregation={aggregations.get(block.id) ?? null} chartMessage={chartMessages.get(block.id)} topic={block.kind === 'topic' ? topics.get(block.guid) : undefined} table={tables?.get(block.id)} contentWidth={Array.isArray(group) ? (contentWidth - BLOCK_GAP * scale) / 2 : contentWidth} scale={scale} pageHeight={size.h} headingExtraHeight={headingExtraHeight} />
               </div>
             );
             return Array.isArray(group)
               ? <div key={group[0].id} className="grid grid-cols-2" style={{ gap: BLOCK_GAP * scale }} data-preview-row>{wrap(group[0])}{wrap(group[1])}</div>
               : wrap(group);
           })}
-          {document.blocks.length === 0 && <div className={`text-xs ${DOCUMENT_PREVIEW_MUTED_TEXT_CLASS}`}>{t('document.preview.emptyPage')}</div>}
+          {blocks.length === 0 && <div className={`text-xs ${DOCUMENT_PREVIEW_MUTED_TEXT_CLASS}`}>{t('document.preview.emptyPage')}</div>}
         </div>
-      </div>
+      </section>)}
     </div>
   );
 }

@@ -23,9 +23,10 @@ import type {
   AddSpaceInStoreParams,
   AddWallInStoreParams,
   AddWindowInStoreParams,
-  BimBackend,
   EntityRef,
 } from '../types.js';
+
+import { StoreModellingNamespace } from './store-modelling.js';
 
 /**
  * `bim.store` — document-level edits on a parsed model.
@@ -42,9 +43,7 @@ import type {
  * Changes accumulate in a per-model overlay and are flushed to the IFC
  * file on the next `bim.export.ifc({ applyMutations: true })`.
  */
-export class StoreNamespace {
-  constructor(private backend: BimBackend) {}
-
+export class StoreNamespace extends StoreModellingNamespace {
   /**
    * Inject a new entity into the active model. Returns an `EntityRef`
    * pointing at the freshly-allocated expressId.

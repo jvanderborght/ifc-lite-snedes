@@ -4,6 +4,7 @@
 import { appearanceSourceTriangle, MathUtils, type Renderer } from '@ifc-lite/renderer';
 import type { MeshData } from '@ifc-lite/geometry';
 import { getPointCloudScanSample } from '@/hooks/ingest/pointCloudScanCache';
+import { activeVisibilityReasons } from '@/lib/visibility/visibility-reasons';
 import { useViewerStore } from '@/store';
 
 /** One resident part of an owner as plain data: no buffers, no live objects. */
@@ -37,6 +38,22 @@ export interface SceneOwnerSnapshot {
 export interface RenderedPointCloudSnapshot {
   pointCount: number;
   points: Array<[number, number, number]>;
+}
+
+/** The current hide/isolation sets passed to the renderer, including storey filtering. */
+export interface RenderVisibilitySnapshot {
+  hiddenIds: number[];
+  isolatedIds: number[] | null;
+}
+
+type SourceSegmentScreenProbe = (modelId: string, expressId: number, segmentIndex: number, t: number) =>
+  { x: number; y: number; world: { x: number; y: number; z: number } } | null;
+
+/** The source overlay supplies its current read-only E2E projection probe. */
+export function setSourceSegmentScreenProbe(probe: SourceSegmentScreenProbe | null): void {
+  const host = globalThis as Record<string, unknown>;
+  if (probe) host.__ifc_lite_source_segment_screen__ = probe;
+  else delete host.__ifc_lite_source_segment_screen__;
 }
 
 async function encodeColorFrame(framePromise: ReturnType<Renderer['captureColorFrame']>): Promise<string | null> {
@@ -81,7 +98,11 @@ function snapshot(part: MeshData): ScenePartSnapshot {
  * per-owner scene snapshot for Playwright assertions and console inspection.
  * Installed by the viewport when its renderer is ready, cleared on teardown.
  */
-export function installViewportDebugHooks(renderer: Renderer): void {
+export function installViewportDebugHooks(
+  renderer: Renderer,
+  visibility: () => { hiddenIds: ReadonlySet<number>; isolatedIds: ReadonlySet<number> | null },
+  annotationLineVertexCount: () => number,
+): void {
   const host = globalThis as Record<string, unknown>;
   host.__ifc_lite_render_stats__ = () => ({
     frame: renderer.getFrameStats(),
@@ -92,6 +113,13 @@ export function installViewportDebugHooks(renderer: Renderer): void {
   // before the production frame submits, so this avoids compositor retention
   // and exposes no scene/model data to the browser test.
   host.__ifc_lite_capture_color_frame__ = () => encodeColorFrame(renderer.captureColorFrame());
+  host.__ifc_lite_render_visibility__ = (): RenderVisibilitySnapshot => {
+    const current = visibility();
+    return { hiddenIds: [...current.hiddenIds], isolatedIds: current.isolatedIds ? [...current.isolatedIds] : null };
+  };
+  host.__ifc_lite_annotation_line_vertices__ = annotationLineVertexCount;
+  host.__ifc_lite_visibility_reasons__ = () => activeVisibilityReasons(useViewerStore.getState())
+    .map(({ id, resetPolicy }) => ({ id, resetPolicy }));
   host.__ifc_lite_scene_owner__ = (globalId: number): SceneOwnerSnapshot => {
     const scene = renderer.getScene();
     const flat = scene.getMeshDataPieces(globalId), instanced = scene.getInstancedMeshDataPieces(globalId);
@@ -153,8 +181,12 @@ export function installViewportDebugHooks(renderer: Renderer): void {
 
 export function clearViewportDebugHooks(): void {
   const host = globalThis as Record<string, unknown>;
+  setSourceSegmentScreenProbe(null);
   delete host.__ifc_lite_render_stats__;
   delete host.__ifc_lite_capture_color_frame__;
+  delete host.__ifc_lite_render_visibility__;
+  delete host.__ifc_lite_annotation_line_vertices__;
+  delete host.__ifc_lite_visibility_reasons__;
   delete host.__ifc_lite_scene_owner__;
   delete host.__ifc_lite_scene_face_hits__;
   delete host.__ifc_lite_rendered_point_cloud__;

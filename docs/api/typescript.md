@@ -194,6 +194,9 @@ class GeometryProcessor {
   // Stream geometry for large files (async generator of streaming events)
   processStreaming(/* buffer + streaming options; see the .d.ts */): AsyncGenerator<StreamingGeometryEvent>;
 
+  // Authored IfcSweptDiskSolid curves and derived centreline measurements
+  extractSweptDiskDescriptions(buffer: Uint8Array, ids?: Uint32Array): SweptDiskDescriptions | null;
+
   // Rust-side exporters surfaced on the processor
   exportGlb(buffer, includeMetadata?, hidden?, isolated?, hiddenTypesCsv?, lit?): Uint8Array | null;
   exportGlbFromMeshes(meshes: MeshData[], includeMetadata?, lit?): Uint8Array | null;
@@ -217,6 +220,18 @@ class GeometryProcessor {
   exportHbjson(buffer, name): Uint8Array | null;
 }
 ```
+
+`extractSweptDiskDescriptions` returns `null` until `init()` completes. Omit
+`ids` to inspect every product, or pass an empty `Uint32Array` to select none.
+The result is keyed by product STEP ID and contains ordered exact line and arc
+segments, the disk `Radius` and `InnerRadius`, and per-segment and total
+centreline lengths in metres. Arc `bend_angle` is an unsigned radian measure;
+the directrix's signed `sweep_angle` keeps its travel direction. Coordinates
+are double-precision, absolute IFC Z-up world metres. `source_modified` marks
+a CSG operand whose final visible shape may differ. Unsupported records have
+an empty directrix and `directrix_metrics: null`. `diagnostics` reports
+malformed representation walks. The returned data is an analytic description,
+not a render overlay or a mesh.
 
 ### GeometryResult and MeshData
 
@@ -835,6 +850,14 @@ For editing an **already-parsed** `IfcDataStore`, the package exposes anchored b
 
 `addColumnToStore`, `addWallToStore`, `addSlabToStore`, `addBeamToStore`, `addDoorToStore`, `addWindowToStore`, `addSpaceToStore`, `addRoofToStore`, `addPlateToStore`, `addMemberToStore`.
 
+Hosted builders take a `HostAnchor` from `resolveHostAnchor(dataStore, hostExpressId, mutationView)` instead: `addOpeningToStore` (IfcOpeningElement + IfcRelVoidsElement in an IfcWall or IfcSlab), `addHostedDoorToStore` and `addHostedWindowToStore` (the opening plus an IfcDoor / IfcWindow filling it through IfcRelFillsElement).
+
+`addHostedElementInStore(dataStore, editor, hostExpressId, spec)` is the atomic hosted command operation used by the viewer, SDK and MCP. A spec chooses `kind: 'opening' | 'door' | 'window'` and the corresponding builder `params`. It resolves the live anchor and refuses wall cuts outside the host, overlapping existing openings, or having unreadable geometry. `readHostOpeningExtents(dataStore, hostExpressId, mutationView)` returns host-frame native-unit bounds and reports unreadable openings.
+
+`bim.store.joinWalls(modelId, aExpressId, bExpressId, options?)` exposes the existing `joinWallsInStore` core through SDK, sandbox and MCP. It returns the new `IfcRelConnectsPathElements` reference. The core now atomically protects hosted cuts against both joined end faces and refuses unreadable cut geometry. `recordCompoundMutation` and `undoRecordedMutationOperations` in `@ifc-lite/mutations` record and restore complete compound overlay graphs, including forgotten earlier entities, as one operation.
+
+Type objects and materials take the storey-free anchor from `resolveAuthoringAnchor(dataStore, mutationView)`: `addElementTypeToStore` and `assignTypeInStore` (IfcRelDefinesByType), and `addMaterialToStore`, `addMaterialLayerSetToStore`, `addMaterialLayerSetUsageToStore` and `assignMaterialInStore` (IfcRelAssociatesMaterial). The `assign*` builders take the model's existing relationships from `readRelatedLists`.
+
 ```typescript
 import { StoreEditor } from '@ifc-lite/mutations';
 import { addColumnToStore, resolveSpatialAnchor } from '@ifc-lite/create';
@@ -920,7 +943,7 @@ function extractViewpointState(viewpoint: BCFViewpoint): {
 
 ### Utilities
 
-GUID conversion (`uuidToIfcGuid`, `ifcGuidToUuid`, `generateIfcGuid`, `isValidIfcGuid`), ARGB colour helpers (`parseARGBColor`, `toARGBColor`), 3D marker overlay (`computeMarkerPositions`, `BCFOverlayRenderer`), and `createBCFFromIDSReport` to turn an IDS validation report into BCF topics.
+GUID conversion (`uuidToIfcGuid`, `ifcGuidToUuid`, `generateIfcGuid`, `isValidIfcGuid`), ARGB colour helpers (`parseARGBColor`, `toARGBColor`), 3D marker positioning (`computeMarkerPositions`), and `createBCFFromIDSReport` to turn an IDS validation report into BCF topics.
 
 ---
 
@@ -1015,7 +1038,7 @@ Headless model-diff engine: classifies entities as added / modified / deleted / 
 
 ## @ifc-lite/lens
 
-Rule-based 3D filtering and colorization for IFC models: `evaluateLens`, `evaluateAutoColorLens`, `matchesCriteria`, class/data-source discovery (`discoverClasses`, `discoverDataSources`), and `BUILTIN_LENSES` presets.
+Rule-based 3D filtering and colorization for IFC models: `evaluateLens` applies shared rule selections, `evaluateAutoColorLens` groups by data values, and class/data-source discovery (`discoverClasses`, `discoverDataSources`) supports the `BUILTIN_LENSES` presets.
 
 ## @ifc-lite/lists
 

@@ -298,20 +298,17 @@ fn a_genuine_overlap_is_hard_at_its_own_depth_under_every_translation_5406() {
     }
 }
 
-/// Known remaining non-invariance downstream of the predicate: for a thin
-/// ROTATED box the OBB certification and depth drift with the offset — the
-/// 20 mm overlap reads 23 mm at 123 m and falls back to the AABB `Estimate`
-/// from 1 km out (#5474). Same numbers before and after #5406.
+/// A thin ROTATED box pair: the OBB frame and centre were computed from
+/// absolute world coordinates, so the error of a single triangle's normal was
+/// multiplied by the element's distance from the origin — the 20 mm overlap
+/// read 23 mm (yaw) / 30 mm (three-axis) at 123 m and fell back to the AABB
+/// `Estimate` (-0.25 m / -1.38 m) from 1 km out. Pinned as `should_panic`
+/// until #5474 made box recognition origin-independent.
 #[test]
-#[should_panic(expected = "changed the verdicts")]
-fn a_rotated_overlap_still_loses_its_certified_depth_far_out_5474() {
-    assert_overlap_is_hard_at_its_depth(YAW);
-}
-
-#[test]
-#[should_panic(expected = "changed the verdicts")]
-fn a_three_axis_rotated_overlap_still_loses_its_certified_depth_far_out_5474() {
-    assert_overlap_is_hard_at_its_depth(THREE_AXIS);
+fn a_rotated_overlap_keeps_its_certified_depth_under_every_translation_5474() {
+    for r in [YAW, THREE_AXIS] {
+        assert_overlap_is_hard_at_its_depth(r);
+    }
 }
 
 #[test]
@@ -424,5 +421,48 @@ fn every_hard_record_in_the_corpus_carries_a_floor_below_its_depth_5639() {
                 }
             }
         }
+    }
+}
+
+#[test]
+fn a_through_penetration_tie_reports_the_same_depth_under_every_translation_5742() {
+    // A 26 mm plate and a member overlapping it by 26 mm: the member pokes
+    // out of the plate's far face by a few microns, so whether the pair is a
+    // THROUGH-penetration is a genuine tie, and f32 noise decides it
+    // differently per placement (it was `false` only at `[0, 1000, 0]`). No
+    // tolerance on that comparison is translation-invariant (#5742), so what
+    // must not move is the NUMBER. It did: `through` swapped the certified
+    // 0.026 m MTD for the rotated boxes' AABB estimate, 0.786 m, a 30x
+    // swing on a tie. A reported depth never exceeds the MTD, a translation
+    // proven to separate the pair, so both sides of the tie now report it.
+    let rot = [1.5800129994571253, 3.5225093160578957, 1.8017834383956415];
+    let h0 = [0.013013728003234151, 0.9714054867418568, 1.3767230571852422];
+    let h1 = [0.23902077510958353, 0.7165054118524359, 0.26588907459338434];
+    let sep = -0.02604616601887833;
+    let scene = Scene {
+        name: "through-penetration tie (#5742)",
+        rotation: rot,
+        boxes: vec![
+            BoxSpec { centre: [0.0, 0.0, 0.0], half: h0 },
+            BoxSpec { centre: [h0[0] + h1[0] + sep, 0.0, 0.0], half: h1 },
+        ],
+    };
+    let mut placements = vec![[1000.0, 0.0, 0.0], [0.0, 1000.0, 0.0], [10_000.0, 0.0, 0.0]];
+    placements.extend(translations());
+    let origin = run(&scene.session([0.0; 3]), HARD, 0.0, false);
+    assert_eq!(origin.len(), 1, "{origin:?}");
+    assert!((origin[0].1 + sep.abs()).abs() <= 1e-4, "origin depth {} != the 26 mm overlap", origin[0].1);
+    for t in placements {
+        let got = run(&scene.session(t), HARD, 0.0, false);
+        assert_eq!(got.len(), 1, "{t:?}: {got:?}");
+        assert_eq!(got[0].0.status, ClashStatus::Hard, "{t:?}");
+        let slack = distance_slack(&scene, t).max(1e-4);
+        assert!(
+            (got[0].1 - origin[0].1).abs() <= slack,
+            "{t:?}: depth {} ({:?}) vs origin {} (slack {slack})",
+            got[0].1,
+            got[0].0.kind,
+            origin[0].1,
+        );
     }
 }

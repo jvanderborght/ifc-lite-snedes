@@ -253,7 +253,7 @@ export default defineConfig({
     CESIUM_BASE_URL: JSON.stringify('/cesium'),
   },
   resolve: {
-    alias: {
+    alias: { ...Object.fromEntries(['snede-export', 'hout-percentage', 'wand-oppervlak', 'wand-geometrie'].map((p) => [`@ifc-lite/${p}`, path.resolve(__dirname, `../../packages/${p}/src`)])),
       '@': path.resolve(__dirname, './src'),
       '@ifc-lite/parser/browser': path.resolve(__dirname, '../../packages/parser/src/browser.ts'),
       '@ifc-lite/parser': path.resolve(__dirname, '../../packages/parser/src'),
@@ -279,10 +279,6 @@ export default defineConfig({
       '@ifc-lite/bcf-api': path.resolve(__dirname, '../../packages/bcf-api/src'),
       '@ifc-lite/oauth-pkce': path.resolve(__dirname, '../../packages/oauth-pkce/src'),
       '@ifc-lite/drawing-2d': path.resolve(__dirname, '../../packages/drawing-2d/src'),
-      '@ifc-lite/snede-export': path.resolve(__dirname, '../../packages/snede-export/src'),
-      '@ifc-lite/hout-percentage': path.resolve(__dirname, '../../packages/hout-percentage/src'),
-      '@ifc-lite/wand-oppervlak': path.resolve(__dirname, '../../packages/wand-oppervlak/src'),
-      '@ifc-lite/wand-geometrie': path.resolve(__dirname, '../../packages/wand-geometrie/src'),
       '@ifc-lite/encoding': path.resolve(__dirname, '../../packages/encoding/src'),
       '@ifc-lite/ids': path.resolve(__dirname, '../../packages/ids/src'),
       '@ifc-lite/lists': path.resolve(__dirname, '../../packages/lists/src'),    },

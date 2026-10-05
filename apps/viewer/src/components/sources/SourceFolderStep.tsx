@@ -5,13 +5,15 @@
 import { useMemo } from 'react';
 import type { SourceContainer, SourceFile, SourceProject } from '@ifc-lite/plugin-api';
 import type { DownloadedSourceFileRecord } from '@/lib/sources/persistence';
+import type { SourceDownloadState } from '@/lib/sources/downloadProgress';
 import { getDownloadedSourceFileRecord, getDownloadedSourceFileStatus } from '@/lib/sources/persistence';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SourceFolderTree } from './SourceFolderTree';
 import { SourceFileRow } from './SourceFileRow';
 import { LoadMoreRow } from './SourceEntityList';
-import { Download, FolderOpen, Loader2, Search, Star, X } from 'lucide-react';
+import { Download, FolderOpen, Search, Star, X } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import { useTranslation } from '@/i18n';
 
 interface SourceFolderStepProps {
@@ -34,7 +36,11 @@ interface SourceFolderStepProps {
   downloadedRecords: ReadonlyMap<string, DownloadedSourceFileRecord>;
   loadedModelNamesByFileId: ReadonlyMap<string, readonly string[]>;
   syncingFileIds: ReadonlySet<string>;
+  /** Sync download progress by file id, for the rows' Sync ring. */
+  syncStatesByFileId: ReadonlyMap<string, SourceDownloadState>;
   onSyncLoadedFile: (file: SourceFile) => void;
+  /** Per-file state of the running Load batch, by file id. */
+  downloadStates: ReadonlyMap<string, SourceDownloadState>;
   busy: boolean;
   onLoad: () => void;
   foldersHaveMore: boolean;
@@ -73,7 +79,9 @@ export function SourceFolderStep({
   downloadedRecords,
   loadedModelNamesByFileId,
   syncingFileIds,
+  syncStatesByFileId,
   onSyncLoadedFile,
+  downloadStates,
   busy,
   onLoad,
   foldersHaveMore,
@@ -192,7 +200,7 @@ export function SourceFolderStep({
               // then would discard its locally-owned `openIds`, collapsing
               // every already-expanded branch.
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
+                <Spinner size="lg" className="text-muted-foreground" />
               </div>
             ) : (
               <>
@@ -273,7 +281,7 @@ export function SourceFolderStep({
           )}
           {!searchActive && childFolders.length > 0 && (
             <div className="border-b px-3 py-2">
-              <div className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+              <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
                 {t('sources.sourceFolderStep.subfoldersHeading')}
               </div>
               <div className="flex flex-wrap gap-1">
@@ -299,7 +307,7 @@ export function SourceFolderStep({
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             {loadingFiles ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
+                <Spinner size="lg" className="text-muted-foreground" />
               </div>
             ) : (
               <>
@@ -317,7 +325,9 @@ export function SourceFolderStep({
                         onToggle={() => onToggleFile(f)}
                         loadedModelNames={loadedModelNamesByFileId.get(f.id) ?? []}
                         syncingFile={syncingFileIds.has(f.id)}
+                        syncState={syncStatesByFileId.get(f.id)}
                         onSyncLoadedFile={() => onSyncLoadedFile(f)}
+                        downloadState={downloadStates.get(f.id)}
                         downloadedStatus={getDownloadedSourceFileStatus(f, downloadedRecord)}
                         favourited={isFileFavourite(f)}
                         onToggleFavourite={() => onToggleFileFavourite(f)}
@@ -348,7 +358,7 @@ export function SourceFolderStep({
         <div className="shrink-0 border-t bg-background px-3 py-2">
           <Button className="w-full" onClick={onLoad} disabled={busy}>
             {busy ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+              <Spinner size="md" className="mr-2" />
             ) : (
               <Download className="mr-2 h-4 w-4" aria-hidden />
             )}
